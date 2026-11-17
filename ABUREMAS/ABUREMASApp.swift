@@ -1,15 +1,17 @@
 
 import SwiftUI
 
+
 @main
 struct ABUREMASApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            LoginView()
                 .preferredColorScheme(.dark)
         }
     }
 }
+
 
 struct ContentView: View {
     @State private var selectedTab = 0
