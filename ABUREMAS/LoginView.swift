@@ -56,19 +56,42 @@ struct LoginView: View {
         }
     }
 
-    private func signIn() async {
-        isLoading = true
-        errorMessage = ""
-        defer { isLoading = false }
+private struct StoreProfile: Decodable {
+    let role: String
+}
 
-        do {
-            try await SupabaseManager.shared.client.auth.signIn(
-                email: email,
-                password: password
-            )
-            isLoggedIn = true
-        } catch {
-            errorMessage = "تعذر تسجيل الدخول: \(error.localizedDescription)"
+private func signIn() async {
+    isLoading = true
+    errorMessage = ""
+    defer { isLoading = false }
+
+    do {
+        let client = SupabaseManager.shared.client
+
+        let response = try await client.auth.signIn(
+            email: email,
+            password: password
+        )
+
+        let profile: StoreProfile = try await client
+            .from("profiles")
+            .select("role")
+            .eq("id", value: response.user.id.uuidString)
+            .single()
+            .execute()
+            .value
+
+        guard ["admin", "user"].contains(profile.role) else {
+            try await client.auth.signOut()
+            errorMessage = "هذا الحساب غير مصرح له بدخول المتجر."
+            return
         }
+
+        isLoggedIn = true
+    } catch {
+        errorMessage = "تعذر تسجيل الدخول: \(error.localizedDescription)"
     }
+}
+
+
 }
