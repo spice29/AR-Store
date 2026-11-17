@@ -6,5 +6,5 @@ enum SupabaseConfig {
         string: "https://ikzhzfqghnhnsdyvbzqt.supabase.co"
     )!
 
-    static let publishableKey = "PASTE_PUBLISHABLE_KEY_HERE"
+    static let publishableKey = "sb_publishable_myR0S0GaW0X9obuU_LDmHA_rUjjMg8W"
 }
