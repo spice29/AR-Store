@@ -54,6 +54,8 @@ struct LoginView: View {
         }
     }
 
+    // MARK: - Login
+
     private var loginForm: some View {
         VStack(spacing: 16) {
             emailField
@@ -68,7 +70,9 @@ struct LoginView: View {
             errorView
 
             Button {
-                Task { await signIn() }
+                Task {
+                    await signIn()
+                }
             } label: {
                 if isLoading {
                     ProgressView()
@@ -98,19 +102,24 @@ struct LoginView: View {
         }
     }
 
+    // MARK: - Password Recovery
+
     private var recoveryForm: some View {
         VStack(spacing: 16) {
             Text("استعادة كلمة المرور")
                 .font(.title3.bold())
 
             if recoveryStep == 0 {
-                Text("أدخل بريدك لإرسال رمز الاستعادة")
+                Text("أدخل بريدك لإرسال رابط الاستعادة")
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
 
                 emailField
 
-                Button("إرسال رمز الاستعادة") {
-                    Task { await sendRecovery() }
+                Button("إرسال رابط الاستعادة") {
+                    Task {
+                        await sendRecovery()
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(gold)
@@ -122,45 +131,16 @@ struct LoginView: View {
                 )
 
             } else {
-                Text("أدخل الرمز المرسل إلى بريدك")
-                    .foregroundStyle(.secondary)
-
-                TextField(
-                    "رمز التحقق",
-                    text: $recoveryCode
+                Text(
+                    "تم طلب رابط الاستعادة. افتح بريدك الإلكتروني واضغط على رابط Reset password."
                 )
-                .keyboardType(.numberPad)
-                .textContentType(.oneTimeCode)
-                .textFieldStyle(.roundedBorder)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
 
-                SecureField(
-                    "كلمة المرور الجديدة",
-                    text: $newPassword
-                )
-                .textContentType(.newPassword)
-                .textFieldStyle(.roundedBorder)
-
-                SecureField(
-                    "تأكيد كلمة المرور",
-                    text: $confirmPassword
-                )
-                .textContentType(.newPassword)
-                .textFieldStyle(.roundedBorder)
-
-                Button("تغيير كلمة المرور") {
-                    Task { await resetPassword() }
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(gold)
-                .disabled(
-                    isLoading ||
-                    recoveryCode.isEmpty ||
-                    newPassword.isEmpty ||
-                    confirmPassword.isEmpty
-                )
-
-                Button("إعادة إرسال الرمز") {
-                    Task { await sendRecovery() }
+                Button("إعادة إرسال الرابط") {
+                    Task {
+                        await sendRecovery()
+                    }
                 }
                 .disabled(isLoading)
             }
@@ -189,6 +169,8 @@ struct LoginView: View {
         }
     }
 
+    // MARK: - Email Field
+
     private var emailField: some View {
         TextField(
             "البريد الإلكتروني",
@@ -201,6 +183,8 @@ struct LoginView: View {
         .textFieldStyle(.roundedBorder)
     }
 
+    // MARK: - Error View
+
     @ViewBuilder
     private var errorView: some View {
         if !errorMessage.isEmpty {
@@ -211,17 +195,26 @@ struct LoginView: View {
         }
     }
 
+    // MARK: - Profile
+
     private struct StoreProfile: Decodable {
         let role: String
     }
 
+    // MARK: - Sign In
+
     @MainActor
     private func signIn() async {
-        guard !isLoading else { return }
+        guard !isLoading else {
+            return
+        }
 
         isLoading = true
         errorMessage = ""
-        defer { isLoading = false }
+
+        defer {
+            isLoading = false
+        }
 
         let client = SupabaseManager.shared.client
 
@@ -246,7 +239,10 @@ struct LoginView: View {
 
             guard ["admin", "user"].contains(profile.role) else {
                 try await client.auth.signOut()
-                errorMessage = "هذا الحساب غير مصرح له."
+
+                errorMessage =
+                    "هذا الحساب غير مصرح له بدخول المتجر."
+
                 return
             }
 
@@ -259,87 +255,41 @@ struct LoginView: View {
         }
     }
 
+    // MARK: - Send Recovery Link
+
     @MainActor
     private func sendRecovery() async {
-        guard !isLoading else { return }
+        guard !isLoading else {
+            return
+        }
 
         isLoading = true
         errorMessage = ""
         recoveryMessage = ""
-        defer { isLoading = false }
+
+        defer {
+            isLoading = false
+        }
 
         do {
             try await SupabaseManager.shared.client.auth
                 .resetPasswordForEmail(
                     email.trimmingCharacters(
                         in: .whitespacesAndNewlines
-                    )
+                    ),
+                    redirectTo: URL(
+                        string: "aburemas://auth/callback"
+                    )!
                 )
 
             recoveryStep = 1
+
             recoveryMessage =
-                "إذا كان البريد مسجلًا، ستصلك رسالة الاستعادة."
+                "إذا كان البريد مسجلًا، ستصلك رسالة تحتوي على رابط استعادة كلمة المرور."
 
         } catch {
             errorMessage =
-                "تعذر إرسال الرمز: \(error.localizedDescription)"
-        }
-    }
-
-    @MainActor
-    private func resetPassword() async {
-        guard !isLoading else { return }
-
-        guard newPassword.count >= 8 else {
-            errorMessage =
-                "كلمة المرور يجب أن تكون 8 أحرف على الأقل."
-            return
-        }
-
-        guard newPassword == confirmPassword else {
-            errorMessage = "كلمتا المرور غير متطابقتين."
-            return
-        }
-
-        isLoading = true
-        errorMessage = ""
-        recoveryMessage = ""
-        defer { isLoading = false }
-
-        let client = SupabaseManager.shared.client
-
-        do {
-            try await client.auth.verifyOTP(
-                email: email.trimmingCharacters(
-                    in: .whitespacesAndNewlines
-                ),
-                token: recoveryCode.trimmingCharacters(
-                    in: .whitespacesAndNewlines
-                ),
-                type: .recovery
-            )
-
-            try await client.auth.update(
-                user: UserAttributes(
-                    password: newPassword
-                )
-            )
-
-            try await client.auth.signOut()
-
-            password = ""
-            newPassword = ""
-            confirmPassword = ""
-            recoveryCode = ""
-            recoveryStep = 0
-            showRecovery = false
-
-            recoveryMessage = ""
-            errorMessage = ""
-
-        } catch {
-            errorMessage =
-                "فشلت الاستعادة: \(error.localizedDescription)"
+                "تعذر إرسال رابط الاستعادة: \(error.localizedDescription)"
         }
     }
 }
