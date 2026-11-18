@@ -44,7 +44,11 @@ struct ABUREMASApp: App {
                 "تعذر فتح رابط الاستعادة",
                 isPresented: Binding(
                     get: { recoveryError != nil },
-                    set: { if !$0 { recoveryError = nil } }
+                    set: {
+                        if !$0 {
+                            recoveryError = nil
+                        }
+                    }
                 )
             ) {
                 Button("حسنًا", role: .cancel) {
@@ -81,11 +85,8 @@ struct ABUREMASApp: App {
         do {
             let client = SupabaseManager.shared.client
 
-            // Supabase Swift SDK v2:
-            // Exchange callback URL for an auth session.
             _ = try await client.auth.session(from: url)
 
-            // Show password reset screen.
             isPasswordRecovery = true
 
         } catch {
@@ -289,7 +290,6 @@ struct PasswordRecoveryView: View {
                 )
             )
 
-            // Clear recovery session after success.
             try await client.auth.signOut()
 
             newPassword = ""
@@ -314,6 +314,9 @@ struct ContentView: View {
     @State private var isLoadingApps = false
     @State private var appsError: String?
 
+    // Admin authorization
+    @State private var isAdmin = false
+
     private let gold = Color(
         red: 0.91,
         green: 0.73,
@@ -329,6 +332,7 @@ struct ContentView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
 
+            // Home
             NavigationStack {
                 homeView
                     .navigationTitle("ABUREMAS")
@@ -341,6 +345,7 @@ struct ContentView: View {
             }
             .tag(0)
 
+            // Categories
             NavigationStack {
                 categoriesView
                     .navigationTitle("التصنيفات")
@@ -353,6 +358,7 @@ struct ContentView: View {
             }
             .tag(1)
 
+            // Account
             NavigationStack {
                 accountView
                     .navigationTitle("حسابي")
@@ -364,10 +370,23 @@ struct ContentView: View {
                 )
             }
             .tag(2)
+
+            // Admin Dashboard
+            if isAdmin {
+                AdminDashboardView()
+                    .tabItem {
+                        Label(
+                            "الإدارة",
+                            systemImage: "shield.lefthalf.filled"
+                        )
+                    }
+                    .tag(3)
+            }
         }
         .tint(gold)
         .task {
             await loadApps()
+            await checkAdminRole()
         }
     }
 
@@ -559,6 +578,40 @@ struct ContentView: View {
             apps = try await AppService.shared.fetchApps()
         } catch {
             appsError = error.localizedDescription
+        }
+    }
+
+    // MARK: - Check Admin Role
+
+    private struct AdminProfile: Decodable {
+        let role: String
+    }
+
+    @MainActor
+    private func checkAdminRole() async {
+
+        isAdmin = false
+
+        do {
+            let client = SupabaseManager.shared.client
+
+            let session = try await client.auth.session
+
+            let profile: AdminProfile = try await client
+                .from("profiles")
+                .select("role")
+                .eq(
+                    "id",
+                    value: session.user.id.uuidString
+                )
+                .single()
+                .execute()
+                .value
+
+            isAdmin = profile.role == "admin"
+
+        } catch {
+            isAdmin = false
         }
     }
 }
