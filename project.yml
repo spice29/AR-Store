@@ -36,3 +36,12 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.aburemas.store
         ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: NO
+
+    info:
+      path: ABUREMAS/Info.plist
+      properties:
+        CFBundleDisplayName: ABUREMAS
+        CFBundleURLTypes:
+          - CFBundleURLName: com.aburemas.store
+            CFBundleURLSchemes:
+              - aburemas
