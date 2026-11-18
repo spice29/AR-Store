@@ -13,8 +13,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Select Xcode
-        run: |
-          xcodebuild -version
+        run: xcodebuild -version
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -32,3 +31,32 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO \
             build
+
+      - name: Build for iPhone
+        run: |
+          xcodebuild \
+            -project ABUREMAS.xcodeproj \
+            -scheme ABUREMAS \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package unsigned application
+        run: |
+          mkdir -p output/Payload
+          APP_PATH="build/Build/Products/Release-iphoneos/ABUREMAS.app"
+          test -d "$APP_PATH"
+          cp -R "$APP_PATH" output/Payload/
+          cd output
+          zip -qry ABUREMAS-unsigned.ipa Payload
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ABUREMAS-unsigned
+          path: output/ABUREMAS-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
