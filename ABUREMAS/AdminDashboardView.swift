@@ -238,7 +238,7 @@ private struct AppEditorView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        Text("سيُرفع الملف إلى مخزن ipa-files الخاص في Supabase.")
+                        Text("اختر ملفًا بامتداد .ipa من تطبيق الملفات. إذا كان محفوظًا على iCloud، نزّله على الجهاز أولًا. سيُرفع إلى ipa-files.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {
@@ -294,7 +294,7 @@ private struct AppEditorView: View {
                     Button("إلغاء") { dismiss() }
                 }
             }
-            .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.data]) { result in
+            .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item]) { result in
                 do {
                     let url = try result.get()
                     guard url.pathExtension.lowercased() == "ipa" else {
