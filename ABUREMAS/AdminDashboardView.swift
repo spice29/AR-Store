@@ -1,21 +1,24 @@
-
 import SwiftUI
 import Supabase
+import UniformTypeIdentifiers
 
 private struct AdminApp: Identifiable, Decodable {
     let id: UUID
     let name: String
     let bundleID: String
     let version: String
+    let description: String?
+    let ipaPath: String?
     let published: Bool
 
     enum CodingKeys: String, CodingKey {
-        case id, name, version, published
+        case id, name, version, description, published
         case bundleID = "bundle_id"
+        case ipaPath = "ipa_path"
     }
 }
 
-private struct NewStoreApp: Encodable {
+private struct AppPayload: Encodable {
     let name: String
     let bundleID: String
     let version: String
@@ -34,43 +37,38 @@ struct AdminDashboardView: View {
     @State private var apps: [AdminApp] = []
     @State private var loading = false
     @State private var errorMessage = ""
-    @State private var showAdd = false
+    @State private var showingEditor = false
+    @State private var editingApp: AdminApp?
 
-    private let gold = Color(
-        red: 0.91, green: 0.73, blue: 0.35
-    )
+    private let gold = Color(red: 0.91, green: 0.73, blue: 0.35)
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: 18) {
                     Image(systemName: "shield.checkered")
-                        .font(.system(size: 54))
+                        .font(.system(size: 42))
                         .foregroundStyle(gold)
 
                     Text("لوحة إدارة ABUREMAS")
-                        .font(.title2.bold())
+                        .font(.title3.bold())
+                        .multilineTextAlignment(.center)
+                        .minimumScaleFactor(0.75)
 
-                    HStack(spacing: 12) {
-                        stat("التطبيقات", apps.count)
-                        stat(
-                            "المنشورة",
-                            apps.filter(\.published).count
-                        )
-                        stat(
-                            "المسودات",
-                            apps.filter { !$0.published }.count
-                        )
+                    HStack(spacing: 8) {
+                        stat("الكل", apps.count)
+                        stat("منشور", apps.filter(\.published).count)
+                        stat("مسودة", apps.filter { !$0.published }.count)
                     }
 
                     Button {
-                        showAdd = true
+                        editingApp = nil
+                        showingEditor = true
                     } label: {
-                        Label(
-                            "إضافة تطبيق جديد",
-                            systemImage: "plus.circle.fill"
-                        )
-                        .frame(maxWidth: .infinity)
+                        Label("إضافة تطبيق جديد", systemImage: "plus.circle.fill")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(gold)
@@ -81,44 +79,51 @@ struct AdminDashboardView: View {
 
                     if !errorMessage.isEmpty {
                         Text(errorMessage)
+                            .font(.footnote)
                             .foregroundStyle(.red)
-                            .font(.caption)
+                            .multilineTextAlignment(.center)
                     }
 
                     ForEach(apps) { app in
-                        HStack {
-                            Image(systemName: "app.fill")
-                                .foregroundStyle(gold)
+                        Button {
+                            editingApp = app
+                            showingEditor = true
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "app.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(gold)
+                                    .frame(width: 38)
 
-                            VStack(alignment: .leading) {
-                                Text(app.name)
-                                    .font(.headline)
-                                Text(app.bundleID)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text("الإصدار \(app.version)")
-                                    .font(.caption)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(app.name)
+                                        .font(.headline)
+                                        .foregroundStyle(.primary)
+                                    Text(app.bundleID)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                    Text("الإصدار \(app.version)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer(minLength: 4)
+                                VStack(alignment: .trailing, spacing: 6) {
+                                    Text(app.published ? "منشور" : "مسودة")
+                                        .font(.caption.bold())
+                                        .foregroundStyle(app.published ? .green : .orange)
+                                    Image(systemName: "pencil.circle")
+                                        .foregroundStyle(gold)
+                                }
                             }
-
-                            Spacer()
-
-                            Text(
-                                app.published
-                                ? "منشور" : "مسودة"
-                            )
-                            .font(.caption)
-                            .foregroundStyle(
-                                app.published ? .green : .orange
-                            )
+                            .padding(14)
+                            .background(Color.white.opacity(0.06))
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
                         }
-                        .padding()
-                        .background(.white.opacity(0.06))
-                        .clipShape(
-                            RoundedRectangle(cornerRadius: 14)
-                        )
+                        .buttonStyle(.plain)
                     }
                 }
-                .padding()
+                .padding(16)
             }
             .navigationTitle("الإدارة")
             .toolbar {
@@ -128,29 +133,30 @@ struct AdminDashboardView: View {
                     Image(systemName: "arrow.clockwise")
                 }
             }
-            .task {
-                await loadApps()
-            }
-            .sheet(isPresented: $showAdd, onDismiss: {
+            .task { await loadApps() }
+            .refreshable { await loadApps() }
+            .sheet(isPresented: $showingEditor, onDismiss: {
                 Task { await loadApps() }
             }) {
-                AddStoreAppView()
+                AppEditorView(app: editingApp)
             }
         }
     }
 
     private func stat(_ title: String, _ value: Int) -> some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 5) {
             Text("\(value)")
-                .font(.title.bold())
+                .font(.title2.bold())
                 .foregroundStyle(gold)
             Text(title)
-                .font(.caption)
+                .font(.caption.bold())
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity)
-        .padding()
-        .background(.white.opacity(0.06))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .padding(.vertical, 16)
+        .background(Color.white.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     @MainActor
@@ -159,32 +165,47 @@ struct AdminDashboardView: View {
         loading = true
         errorMessage = ""
         defer { loading = false }
-
         do {
             apps = try await SupabaseManager.shared.client
                 .from("apps")
-                .select(
-                    "id,name,bundle_id,version,published"
-                )
+                .select("id,name,bundle_id,version,description,ipa_path,published")
                 .order("created_at", ascending: false)
                 .execute()
                 .value
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = "تعذر تحميل التطبيقات: \(error.localizedDescription)"
         }
     }
 }
 
-private struct AddStoreAppView: View {
+private struct AppEditorView: View {
     @Environment(\.dismiss) private var dismiss
+    let app: AdminApp?
 
-    @State private var name = ""
-    @State private var bundleID = ""
-    @State private var version = ""
-    @State private var appDescription = ""
-    @State private var ipaURL = ""
+    @State private var name: String
+    @State private var bundleID: String
+    @State private var version: String
+    @State private var appDescription: String
+    @State private var ipaURL: String
+    @State private var useFile = false
+    @State private var selectedIPA: Data?
+    @State private var selectedFilename = ""
+    @State private var showingImporter = false
+    @State private var published: Bool
     @State private var saving = false
     @State private var errorMessage = ""
+
+    private let gold = Color(red: 0.91, green: 0.73, blue: 0.35)
+
+    init(app: AdminApp?) {
+        self.app = app
+        _name = State(initialValue: app?.name ?? "")
+        _bundleID = State(initialValue: app?.bundleID ?? "")
+        _version = State(initialValue: app?.version ?? "1.0")
+        _appDescription = State(initialValue: app?.description ?? "")
+        _ipaURL = State(initialValue: app?.ipaPath?.hasPrefix("https://") == true ? app!.ipaPath! : "")
+        _published = State(initialValue: app?.published ?? false)
+    }
 
     var body: some View {
         NavigationStack {
@@ -195,63 +216,103 @@ private struct AddStoreAppView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                     TextField("الإصدار", text: $version)
-                    TextField(
-                        "الوصف",
-                        text: $appDescription,
-                        axis: .vertical
-                    )
+                    TextField("الوصف", text: $appDescription, axis: .vertical)
+                        .lineLimit(2...5)
                 }
 
-                Section("ملف التطبيق") {
-                    TextField(
-                        "رابط IPA - HTTPS",
-                        text: $ipaURL
-                    )
-                    .keyboardType(.URL)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
+                Section("مصدر ملف IPA") {
+                    Picker("المصدر", selection: $useFile) {
+                        Text("رابط خارجي").tag(false)
+                        Text("من الملفات").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+
+                    if useFile {
+                        Button {
+                            showingImporter = true
+                        } label: {
+                            Label("اختيار IPA من الملفات", systemImage: "folder")
+                        }
+                        if !selectedFilename.isEmpty {
+                            Text(selectedFilename)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text("سيُرفع الملف إلى مخزن ipa-files الخاص في Supabase.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        TextField("رابط تنزيل IPA مباشر (HTTPS)", text: $ipaURL)
+                            .keyboardType(.URL)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    }
+
+                    if let oldPath = app?.ipaPath, !oldPath.isEmpty {
+                        Text("الملف الحالي: \(oldPath)")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
                 }
 
-                Section {
-                    Text(
-                        "سيُحفظ التطبيق كمسودة غير منشورة."
-                    )
-                    .foregroundStyle(.secondary)
+                Section("النشر") {
+                    Toggle("منشور في المتجر", isOn: $published)
+                        .tint(gold)
+                    Text("احفظ التطبيق كمسودة حتى يصبح ملف IPA جاهزًا. النشر لا يعني أن التثبيت المباشر مفعّل بعد.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 if !errorMessage.isEmpty {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
+                    Section {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
                 }
 
-                Button {
-                    Task { await save() }
-                } label: {
-                    if saving {
-                        ProgressView()
-                    } else {
-                        Text("حفظ التطبيق")
+                Section {
+                    Button {
+                        Task { await save() }
+                    } label: {
+                        HStack {
+                            Spacer()
+                            if saving { ProgressView() }
+                            else { Text(app == nil ? "حفظ التطبيق" : "حفظ التعديلات").bold() }
+                            Spacer()
+                        }
                     }
+                    .disabled(saving || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                              bundleID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                              version.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                .disabled(
-                    saving ||
-                    name.trimmingCharacters(
-                        in: .whitespacesAndNewlines
-                    ).isEmpty ||
-                    bundleID.trimmingCharacters(
-                        in: .whitespacesAndNewlines
-                    ).isEmpty ||
-                    version.trimmingCharacters(
-                        in: .whitespacesAndNewlines
-                    ).isEmpty
-                )
             }
-            .navigationTitle("إضافة تطبيق")
+            .navigationTitle(app == nil ? "إضافة تطبيق" : "تعديل تطبيق")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("إلغاء") {
-                        dismiss()
+                    Button("إلغاء") { dismiss() }
+                }
+            }
+            .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.data]) { result in
+                do {
+                    let url = try result.get()
+                    guard url.pathExtension.lowercased() == "ipa" else {
+                        errorMessage = "اختر ملفًا بامتداد .ipa"
+                        return
                     }
+                    let granted = url.startAccessingSecurityScopedResource()
+                    defer { if granted { url.stopAccessingSecurityScopedResource() } }
+                    let data = try Data(contentsOf: url)
+                    guard !data.isEmpty else {
+                        errorMessage = "الملف المختار فارغ."
+                        return
+                    }
+                    selectedIPA = data
+                    selectedFilename = url.lastPathComponent
+                    errorMessage = ""
+                } catch {
+                    errorMessage = "تعذر قراءة الملف: \(error.localizedDescription)"
                 }
             }
         }
@@ -260,49 +321,64 @@ private struct AddStoreAppView: View {
     @MainActor
     private func save() async {
         guard !saving else { return }
-
-        let link = ipaURL.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        )
-
-        if !link.isEmpty {
-            guard let url = URL(string: link),
-                  url.scheme?.lowercased() == "https",
-                  url.host != nil else {
-                errorMessage = "أدخل رابط HTTPS صالحًا."
-                return
-            }
-        }
-
         saving = true
         errorMessage = ""
         defer { saving = false }
 
-        let newApp = NewStoreApp(
-            name: name.trimmingCharacters(
-                in: .whitespacesAndNewlines
-            ),
-            bundleID: bundleID.trimmingCharacters(
-                in: .whitespacesAndNewlines
-            ),
-            version: version.trimmingCharacters(
-                in: .whitespacesAndNewlines
-            ),
-            description: appDescription.isEmpty
-                ? nil : appDescription,
-            ipaPath: link.isEmpty ? nil : link,
-            published: false
-        )
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanBundle = bundleID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanVersion = version.trimmingCharacters(in: .whitespacesAndNewlines)
+        var finalPath = app?.ipaPath
 
         do {
-            try await SupabaseManager.shared.client
-                .from("apps")
-                .insert(newApp)
-                .execute()
+            if useFile, let data = selectedIPA {
+                let storagePath = "apps/\(UUID().uuidString).ipa"
+                try await SupabaseManager.shared.client.storage
+                    .from("ipa-files")
+                    .upload(
+                        path: storagePath,
+                        file: data,
+                        options: FileOptions(contentType: "application/octet-stream")
+                    )
+                finalPath = storagePath
+            } else if !useFile {
+                let link = ipaURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !link.isEmpty {
+                    guard let url = URL(string: link),
+                          url.scheme?.lowercased() == "https",
+                          url.host != nil else {
+                        errorMessage = "الرابط الخارجي يجب أن يبدأ بـ HTTPS."
+                        return
+                    }
+                    finalPath = link
+                }
+            }
 
+            if published && (finalPath == nil || finalPath?.isEmpty == true) {
+                errorMessage = "أضف ملف IPA أو رابطًا مباشرًا قبل النشر."
+                return
+            }
+
+            let payload = AppPayload(
+                name: cleanName,
+                bundleID: cleanBundle,
+                version: cleanVersion,
+                description: appDescription.isEmpty ? nil : appDescription,
+                ipaPath: finalPath,
+                published: published
+            )
+            let table = SupabaseManager.shared.client.from("apps")
+            if let app {
+                try await table
+                    .update(payload)
+                    .eq("id", value: app.id.uuidString)
+                    .execute()
+            } else {
+                try await table.insert(payload).execute()
+            }
             dismiss()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = "تعذر حفظ التطبيق: \(error.localizedDescription)"
         }
     }
 }
