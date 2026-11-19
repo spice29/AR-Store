@@ -316,6 +316,7 @@ struct ContentView: View {
 
     // Admin authorization
     @State private var isAdmin = false
+    @State private var adminStatus = "جاري التحقق من الصلاحية..."
 
     private let gold = Color(
         red: 0.91,
@@ -385,8 +386,8 @@ struct ContentView: View {
         }
         .tint(gold)
         .task {
-            await loadApps()
             await checkAdminRole()
+            await loadApps()
         }
     }
 
@@ -552,9 +553,7 @@ struct ContentView: View {
         ContentUnavailableView(
             "حسابي",
             systemImage: "person.crop.circle",
-            description: Text(
-                "سيتم إضافة إدارة الحساب وتسجيل الخروج"
-            )
+            description: Text(adminStatus)
         )
     }
 
@@ -609,9 +608,11 @@ struct ContentView: View {
                 .value
 
             isAdmin = profile.role == "admin"
+            adminStatus = isAdmin ? "تم التحقق: مدير المتجر" : "صلاحية الحساب: \(profile.role)"
 
         } catch {
             isAdmin = false
+            adminStatus = "خطأ في قراءة صلاحية الحساب: \(error.localizedDescription)"
         }
     }
 }
