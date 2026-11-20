@@ -191,6 +191,7 @@ private struct AppEditorView: View {
     @State private var ipaURL: String
     @State private var useFile = false
     @State private var selectedIPA: Data?
+    @State private var selectedSize: Int64 = 0
     @State private var selectedFilename = ""
     @State private var showingImporter = false
     @State private var published: Bool
@@ -237,8 +238,11 @@ private struct AppEditorView: View {
                             Label("اختيار IPA من الملفات", systemImage: "folder")
                         }
                         if !selectedFilename.isEmpty {
-                            Text(selectedFilename)
+                            Label(selectedFilename, systemImage: "checkmark.circle.fill")
                                 .font(.caption)
+                                .foregroundStyle(.green)
+                            Text(ByteCountFormatter.string(fromByteCount: selectedSize, countStyle: .file))
+                                .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
                         Text("بعد اختيار ملف IPA سيظهر اسمه هنا. اضغط حفظ التعديلات لبدء الرفع إلى التخزين الخاص.")
@@ -321,6 +325,7 @@ private struct AppEditorView: View {
                         return
                     }
                     selectedIPA = data
+                    selectedSize = fileSize
                     selectedFilename = url.lastPathComponent
                     errorMessage = ""
                 } catch {
@@ -344,6 +349,10 @@ private struct AppEditorView: View {
         var finalPath = app?.ipaPath
 
         do {
+            if useFile && selectedIPA == nil && (finalPath == nil || finalPath?.isEmpty == true) {
+                errorMessage = "اختر ملف IPA من الملفات أولًا، أو انتقل إلى خيار الرابط الخارجي."
+                return
+            }
             if useFile, let data = selectedIPA {
                 saveStatus = "جاري رفع IPA..."
                 let storagePath = "apps/\(UUID().uuidString).ipa"
