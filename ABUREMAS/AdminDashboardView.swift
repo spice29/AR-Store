@@ -194,6 +194,7 @@ private struct AppEditorView: View {
     @State private var published: Bool
     @State private var saving = false
     @State private var errorMessage = ""
+    @State private var saveStatus = ""
 
     private let gold = Color(red: 0.91, green: 0.73, blue: 0.35)
 
@@ -264,6 +265,9 @@ private struct AppEditorView: View {
                         .foregroundStyle(.secondary)
                 }
 
+                if saving && !saveStatus.isEmpty {
+                    Section { Text(saveStatus).font(.footnote).foregroundStyle(.secondary) }
+                }
                 if !errorMessage.isEmpty {
                     Section {
                         Text(errorMessage)
@@ -303,6 +307,12 @@ private struct AppEditorView: View {
                     }
                     let granted = url.startAccessingSecurityScopedResource()
                     defer { if granted { url.stopAccessingSecurityScopedResource() } }
+                    let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+                    let fileSize = (attributes[.size] as? NSNumber)?.int64Value ?? 0
+                    guard fileSize > 0 && fileSize <= 150 * 1024 * 1024 else {
+                        errorMessage = "حجم الملف يجب أن يكون أقل من 150 ميجابايت في هذه النسخة."
+                        return
+                    }
                     let data = try Data(contentsOf: url)
                     guard !data.isEmpty else {
                         errorMessage = "الملف المختار فارغ."
@@ -323,6 +333,7 @@ private struct AppEditorView: View {
         guard !saving else { return }
         saving = true
         errorMessage = ""
+        saveStatus = "جاري تجهيز التطبيق..."
         defer { saving = false }
 
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -332,6 +343,7 @@ private struct AppEditorView: View {
 
         do {
             if useFile, let data = selectedIPA {
+                saveStatus = "جاري رفع IPA..."
                 let storagePath = "apps/\(UUID().uuidString).ipa"
                 try await SupabaseManager.shared.client.storage
                     .from("ipa-files")
@@ -359,6 +371,7 @@ private struct AppEditorView: View {
                 return
             }
 
+            saveStatus = "جاري حفظ بيانات التطبيق..."
             let payload = AppPayload(
                 name: cleanName,
                 bundleID: cleanBundle,
