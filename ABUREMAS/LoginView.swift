@@ -52,6 +52,10 @@ struct LoginView: View {
         .fullScreenCover(isPresented: $isLoggedIn) {
             ContentView()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .aburemasDidSignOut)) { _ in
+            isLoggedIn = false
+            password = ""
+        }
     }
 
     // MARK: - Login
@@ -292,4 +296,9 @@ struct LoginView: View {
                 "تعذر إرسال رابط الاستعادة: \(error.localizedDescription)"
         }
     }
+}
+
+
+extension Notification.Name {
+    static let aburemasDidSignOut = Notification.Name("aburemasDidSignOut")
 }

@@ -310,6 +310,9 @@ struct PasswordRecoveryView: View {
 struct ContentView: View {
 
     @State private var selectedTab = 0
+    @State private var searchText = ""
+    @State private var isSigningOut = false
+    @State private var signOutError: String?
     @State private var apps: [StoreApp] = []
     @State private var isLoadingApps = false
     @State private var appsError: String?
@@ -432,6 +435,10 @@ struct ContentView: View {
                         .padding(.vertical, 7)
                         .background(gold.opacity(0.12), in: Capsule())
                 }
+                TextField("ابحث عن تطبيق أو Bundle ID", text: $searchText)
+                    .textFieldStyle(.roundedBorder)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
                 appsSection
             }
             .frame(maxWidth: 650)
@@ -442,6 +449,12 @@ struct ContentView: View {
         }
         .background(backgroundColor)
         .refreshable { await loadApps() }
+    }
+
+    private var filteredApps: [StoreApp] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return apps }
+        return apps.filter { $0.name.localizedCaseInsensitiveContains(query) || $0.bundleID.localizedCaseInsensitiveContains(query) || ($0.description?.localizedCaseInsensitiveContains(query) ?? false) }
     }
 
     private var appsSection: some View {
@@ -466,15 +479,15 @@ struct ContentView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(22)
-            } else if apps.isEmpty {
+            } else if filteredApps.isEmpty {
                 ContentUnavailableView(
-                    "لا توجد تطبيقات منشورة",
-                    systemImage: "square.stack.3d.up",
-                    description: Text("يمكن لمدير المتجر نشر التطبيقات من لوحة الإدارة")
+                    searchText.isEmpty ? "لا توجد تطبيقات منشورة" : "لا توجد نتائج",
+                    systemImage: searchText.isEmpty ? "square.stack.3d.up" : "magnifyingglass",
+                    description: Text(searchText.isEmpty ? "يمكن لمدير المتجر نشر التطبيقات من لوحة الإدارة" : "جرّب البحث باسم آخر")
                 )
             } else {
                 LazyVStack(spacing: 12) {
-                    ForEach(apps) { app in
+                    ForEach(filteredApps) { app in
                         appRow(app)
                     }
                 }
@@ -534,6 +547,8 @@ struct ContentView: View {
                 Text("كل التطبيقات المنشورة حاليًا")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                TextField("ابحث في التطبيقات", text: $searchText)
+                    .textFieldStyle(.roundedBorder)
                 appsSection
             }
             .padding(16)
@@ -555,6 +570,17 @@ struct ContentView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                Button(role: .destructive) {
+                    Task { await signOut() }
+                } label: {
+                    Label("تسجيل الخروج", systemImage: "rectangle.portrait.and.arrow.right")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(isSigningOut)
+                if let signOutError {
+                    Text(signOutError).font(.footnote).foregroundStyle(.red)
+                }
                 Text("ABUREMAS • متجر خاص")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -565,6 +591,20 @@ struct ContentView: View {
             .padding(16)
         }
         .background(backgroundColor)
+    }
+
+    @MainActor
+    private func signOut() async {
+        guard !isSigningOut else { return }
+        isSigningOut = true
+        signOutError = nil
+        defer { isSigningOut = false }
+        do {
+            try await SupabaseManager.shared.client.auth.signOut()
+            NotificationCenter.default.post(name: .aburemasDidSignOut, object: nil)
+        } catch {
+            signOutError = error.localizedDescription
+        }
     }
 
     // MARK: - Fetch Apps
