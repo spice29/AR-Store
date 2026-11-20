@@ -313,6 +313,7 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var isSigningOut = false
     @State private var signOutError: String?
+    @State private var downloadError: String?
     @State private var apps: [StoreApp] = []
     @State private var isLoadingApps = false
     @State private var appsError: String?
@@ -388,6 +389,14 @@ struct ContentView: View {
             }
         }
         .tint(gold)
+        .alert("تعذر فتح الملف", isPresented: Binding(
+            get: { downloadError != nil },
+            set: { if !$0 { downloadError = nil } }
+        )) {
+            Button("حسنًا", role: .cancel) { downloadError = nil }
+        } message: {
+            Text(downloadError ?? "")
+        }
         .onChange(of: selectedTab) { _, newTab in
             if newTab == 0 { Task { await loadApps() } }
         }
@@ -518,21 +527,18 @@ struct ContentView: View {
                 }
             }
             Spacer(minLength: 0)
-            if let path = app.ipaPath,
-               path.hasPrefix("https://"),
-               let url = URL(string: path),
-               url.scheme == "https" {
-                Link(destination: url) {
-                    Label("الرابط", systemImage: "arrow.down.circle")
-                        .labelStyle(.iconOnly)
+            if let path = app.ipaPath, !path.isEmpty {
+                Button {
+                    Task { await openAppFile(path) }
+                } label: {
+                    Image(systemName: path.hasSuffix(".plist") ? "square.and.arrow.down" : "arrow.down.circle.fill")
                         .font(.title2)
                         .foregroundStyle(gold)
                 }
-                .accessibilityLabel("فتح رابط ملف \(app.name)")
+                .accessibilityLabel("فتح تنزيل \(app.name)")
             } else {
                 Image(systemName: "lock.shield")
                     .foregroundStyle(.secondary)
-                    .accessibilityLabel("ملف محفوظ في التخزين الخاص")
             }
         }
         .padding(14)
@@ -591,6 +597,32 @@ struct ContentView: View {
             .padding(16)
         }
         .background(backgroundColor)
+    }
+
+    @MainActor
+    private func openAppFile(_ path: String) async {
+        do {
+            let url: URL
+            if path.hasPrefix("https://") {
+                guard let external = URL(string: path), external.scheme == "https",
+                      external.host != nil else {
+                    throw URLError(.badURL)
+                }
+                url = external
+            } else {
+                guard path.hasPrefix("apps/"), path.lowercased().hasSuffix(".ipa"),
+                      !path.contains("..") else {
+                    throw URLError(.badURL)
+                }
+                url = try await SupabaseManager.shared.client.storage
+                    .from("ipa-files")
+                    .createSignedURL(path: path, expiresIn: 300)
+            }
+            // The signed link grants temporary file access, not automatic iOS installation.
+            await UIApplication.shared.open(url)
+        } catch {
+            downloadError = "تعذر تجهيز رابط التنزيل: \(error.localizedDescription)"
+        }
     }
 
     @MainActor
