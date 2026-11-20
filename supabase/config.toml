@@ -1,0 +1,2 @@
+[functions.ota-install]
+verify_jwt = false

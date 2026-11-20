@@ -529,13 +529,14 @@ struct ContentView: View {
             Spacer(minLength: 0)
             if let path = app.ipaPath, !path.isEmpty {
                 Button {
-                    Task { await openAppFile(path) }
+                    Task { await installApp(app) }
                 } label: {
-                    Image(systemName: path.hasSuffix(".plist") ? "square.and.arrow.down" : "arrow.down.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(gold)
+                    Label("تثبيت", systemImage: "square.and.arrow.down.fill")
+                        .font(.subheadline.bold())
                 }
-                .accessibilityLabel("فتح تنزيل \(app.name)")
+                .buttonStyle(.borderedProminent)
+                .tint(gold)
+                .accessibilityLabel("تثبيت \(app.name)")
             } else {
                 Image(systemName: "lock.shield")
                     .foregroundStyle(.secondary)
@@ -597,6 +598,35 @@ struct ContentView: View {
             .padding(16)
         }
         .background(backgroundColor)
+    }
+
+    private struct InstallResponse: Decodable {
+        let installUrl: String
+    }
+
+    @MainActor
+    private func installApp(_ app: StoreApp) async {
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            let endpoint = SupabaseConfig.projectURL.appending(path: "functions/v1/ota-install")
+            var request = URLRequest(url: endpoint)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
+            request.setValue(SupabaseConfig.publishableKey, forHTTPHeaderField: "apikey")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONSerialization.data(withJSONObject: ["appId": app.id.uuidString])
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                throw URLError(.cannotLoadFromNetwork)
+            }
+            let payload = try JSONDecoder().decode(InstallResponse.self, from: data)
+            guard let url = URL(string: payload.installUrl), url.scheme == "itms-services" else {
+                throw URLError(.badURL)
+            }
+            await UIApplication.shared.open(url)
+        } catch {
+            downloadError = "تعذر بدء التثبيت. تحقق من نشر خدمة ota-install وصلاحيات الحساب وتوقيع Ad Hoc: \(error.localizedDescription)"
+        }
     }
 
     @MainActor
