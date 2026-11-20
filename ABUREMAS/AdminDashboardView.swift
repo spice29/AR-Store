@@ -123,7 +123,9 @@ struct AdminDashboardView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(16)
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 120)
             }
             .navigationTitle("الإدارة")
             .toolbar {
@@ -239,7 +241,7 @@ private struct AppEditorView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        Text("اختر ملفًا بامتداد .ipa من تطبيق الملفات. إذا كان محفوظًا على iCloud، نزّله على الجهاز أولًا. سيُرفع إلى ipa-files.")
+                        Text("بعد اختيار ملف IPA سيظهر اسمه هنا. اضغط حفظ التعديلات لبدء الرفع إلى التخزين الخاص.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {

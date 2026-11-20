@@ -398,93 +398,81 @@ struct ContentView: View {
 
     private var homeView: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(alignment: .leading, spacing: 22) {
+                HStack(spacing: 14) {
+                    Image(systemName: "square.stack.3d.up.fill")
+                        .font(.system(size: 29))
+                        .foregroundStyle(gold)
+                        .frame(width: 56, height: 56)
+                        .background(gold.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("ABUREMAS").font(.title2.bold())
+                        Text("متجر أبو ريماس الخاص")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(16)
+                .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 20))
 
-                Image(
-                    systemName: "square.stack.3d.up.fill"
-                )
-                .font(.system(size: 72))
-                .foregroundStyle(gold)
-
-                Text("ABUREMAS")
-                    .font(
-                        .system(
-                            size: 34,
-                            weight: .bold
-                        )
-                    )
-
-                Text("متجر أبو ريماس")
-                    .font(.title2)
-
-                Text("Your Private IPA Store")
-                    .foregroundStyle(.secondary)
-
-                Divider()
-
+                HStack {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("التطبيقات المتاحة")
+                            .font(.headline)
+                        Text("تطبيقاتك المنشورة في المتجر")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text("\(apps.count)")
+                        .font(.headline.monospacedDigit())
+                        .foregroundStyle(gold)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(gold.opacity(0.12), in: Capsule())
+                }
                 appsSection
             }
+            .frame(maxWidth: 650)
             .frame(maxWidth: .infinity)
-            .padding(24)
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 110)
         }
         .background(backgroundColor)
-        .refreshable {
-            await loadApps()
-        }
+        .refreshable { await loadApps() }
     }
-
-    // MARK: - Apps Section
 
     private var appsSection: some View {
         Group {
-
             if isLoadingApps && apps.isEmpty {
-
-                ProgressView(
-                    "جاري تحميل التطبيقات..."
-                )
-                .padding()
-
+                ProgressView("جاري تحميل التطبيقات...")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 40)
             } else if let appsError {
-
                 VStack(spacing: 12) {
-
-                    Image(
-                        systemName: "wifi.exclamationmark"
-                    )
-                    .font(.system(size: 40))
-                    .foregroundStyle(.orange)
-
-                    Text("تعذر تحميل التطبيقات")
-                        .font(.headline)
-
+                    Image(systemName: "wifi.exclamationmark")
+                        .font(.largeTitle)
+                        .foregroundStyle(.orange)
+                    Text("تعذر تحميل التطبيقات").font(.headline)
                     Text(appsError)
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
-
-                    Button("إعادة المحاولة") {
-                        Task {
-                            await loadApps()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(gold)
+                    Button("إعادة المحاولة") { Task { await loadApps() } }
+                        .buttonStyle(.borderedProminent)
+                        .tint(gold)
                 }
-                .padding()
-
+                .frame(maxWidth: .infinity)
+                .padding(22)
             } else if apps.isEmpty {
-
                 ContentUnavailableView(
-                    "لا توجد تطبيقات حاليًا",
+                    "لا توجد تطبيقات منشورة",
                     systemImage: "square.stack.3d.up",
-                    description: Text(
-                        "ستظهر تطبيقاتك هنا بعد إضافتها إلى المتجر"
-                    )
+                    description: Text("يمكن لمدير المتجر نشر التطبيقات من لوحة الإدارة")
                 )
-
             } else {
-
                 LazyVStack(spacing: 12) {
                     ForEach(apps) { app in
                         appRow(app)
@@ -494,70 +482,89 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - App Row
-
     private func appRow(_ app: StoreApp) -> some View {
-        HStack(spacing: 14) {
-
+        HStack(alignment: .center, spacing: 14) {
             Image(systemName: "app.fill")
-                .font(.system(size: 36))
+                .font(.system(size: 29))
                 .foregroundStyle(gold)
-                .frame(width: 52, height: 52)
-
-            VStack(
-                alignment: .leading,
-                spacing: 6
-            ) {
-
+                .frame(width: 58, height: 58)
+                .background(gold.opacity(0.1), in: RoundedRectangle(cornerRadius: 15))
+            VStack(alignment: .leading, spacing: 5) {
                 Text(app.name)
                     .font(.headline)
-                    .foregroundStyle(.white)
-
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
                 Text("الإصدار \(app.version)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-
-                if let description = app.description,
-                   !description.isEmpty {
-
+                if let description = app.description, !description.isEmpty {
                     Text(description)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
             }
-
-            Spacer()
+            Spacer(minLength: 0)
+            if let path = app.ipaPath,
+               path.hasPrefix("https://"),
+               let url = URL(string: path),
+               url.scheme == "https" {
+                Link(destination: url) {
+                    Label("الرابط", systemImage: "arrow.down.circle")
+                        .labelStyle(.iconOnly)
+                        .font(.title2)
+                        .foregroundStyle(gold)
+                }
+                .accessibilityLabel("فتح رابط ملف \(app.name)")
+            } else {
+                Image(systemName: "lock.shield")
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("ملف محفوظ في التخزين الخاص")
+            }
         }
         .padding(14)
-        .background(
-            Color.white.opacity(0.07)
-        )
-        .clipShape(
-            RoundedRectangle(cornerRadius: 16)
-        )
+        .background(Color.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 18))
     }
-
-    // MARK: - Categories
 
     private var categoriesView: some View {
-        ContentUnavailableView(
-            "التصنيفات",
-            systemImage: "square.grid.2x2",
-            description: Text(
-                "سيتم تحميل التصنيفات من Supabase"
-            )
-        )
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("تطبيقات المتجر")
+                    .font(.title3.bold())
+                Text("كل التطبيقات المنشورة حاليًا")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                appsSection
+            }
+            .padding(16)
+            .padding(.bottom, 100)
+        }
+        .background(backgroundColor)
+        .refreshable { await loadApps() }
     }
 
-    // MARK: - Account
-
     private var accountView: some View {
-        ContentUnavailableView(
-            "حسابي",
-            systemImage: "person.crop.circle",
-            description: Text(adminStatus)
-        )
+        ScrollView {
+            VStack(spacing: 16) {
+                Image(systemName: "person.crop.circle.fill")
+                    .font(.system(size: 62))
+                    .foregroundStyle(gold)
+                Text("حسابي")
+                    .font(.title2.bold())
+                Label(adminStatus, systemImage: "checkmark.shield")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                Text("ABUREMAS • متجر خاص")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(24)
+            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 20))
+            .padding(16)
+        }
+        .background(backgroundColor)
     }
 
     // MARK: - Fetch Apps
