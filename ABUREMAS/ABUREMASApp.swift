@@ -385,6 +385,9 @@ struct ContentView: View {
             }
         }
         .tint(gold)
+        .onChange(of: selectedTab) { _, newTab in
+            if newTab == 0 { Task { await loadApps() } }
+        }
         .task {
             await checkAdminRole()
             await loadApps()
