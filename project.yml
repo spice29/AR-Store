@@ -41,6 +41,8 @@ targets:
       path: ABUREMAS/Info.plist
       properties:
         CFBundleDisplayName: ABUREMAS
+        UILaunchScreen: {}
+        UIRequiresFullScreen: true
         CFBundleURLTypes:
           - CFBundleURLName: com.aburemas.store
             CFBundleURLSchemes:
