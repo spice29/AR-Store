@@ -311,7 +311,7 @@ struct ContentView: View {
 
     @State private var selectedTab = 0
     @State private var searchText = ""
-    @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 56
+    @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 48
     @State private var isSigningOut = false
     @State private var signOutError: String?
     @State private var downloadError: String?
@@ -341,7 +341,8 @@ struct ContentView: View {
             // Home
             NavigationStack {
                 homeView
-                    .navigationTitle("ABUREMAS")
+                    .navigationTitle("الرئيسية")
+                    .navigationBarTitleDisplayMode(.inline)
             }
             .tabItem {
                 Label(
@@ -355,6 +356,7 @@ struct ContentView: View {
             NavigationStack {
                 categoriesView
                     .navigationTitle("التصنيفات")
+                    .navigationBarTitleDisplayMode(.inline)
             }
             .tabItem {
                 Label(
@@ -368,6 +370,7 @@ struct ContentView: View {
             NavigationStack {
                 accountView
                     .navigationTitle("حسابي")
+                    .navigationBarTitleDisplayMode(.inline)
             }
             .tabItem {
                 Label(
@@ -390,6 +393,8 @@ struct ContentView: View {
             }
         }
         .tint(gold)
+        .toolbarBackground(backgroundColor, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
         .alert("تعذر فتح الملف", isPresented: Binding(
             get: { downloadError != nil },
             set: { if !$0 { downloadError = nil } }
@@ -411,55 +416,80 @@ struct ContentView: View {
 
     private var homeView: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(spacing: 12) {
                     Image(systemName: "square.stack.3d.up.fill")
-                        .font(.system(size: 29))
+                        .font(.system(size: 22, weight: .semibold))
                         .foregroundStyle(gold)
-                        .frame(width: 56, height: 56)
-                        .background(gold.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("ABUREMAS").font(.title2.bold()).lineLimit(1).minimumScaleFactor(0.8)
+                        .frame(width: 48, height: 48)
+                        .background(gold.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("ABUREMAS")
+                            .font(.system(.headline, design: .rounded, weight: .bold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                         Text("متجر أبو ريماس الخاص")
-                            .font(.subheadline)
+                            .font(.footnote)
                             .foregroundStyle(.secondary)
+                            .lineLimit(2)
                     }
                     Spacer(minLength: 0)
                 }
-                .padding(16)
-                .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 20))
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 18))
 
-                HStack {
-                    VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .center, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 3) {
                         Text("التطبيقات المتاحة")
                             .font(.headline)
-                        Text("تطبيقاتك المنشورة في المتجر")
-                            .font(.caption)
+                        Text("تطبيقاتك المنشورة")
+                            .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
-                    Spacer()
+                    Spacer(minLength: 8)
                     Text("\(apps.count)")
-                        .font(.headline.monospacedDigit())
+                        .font(.subheadline.monospacedDigit().bold())
                         .foregroundStyle(gold)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 7)
                         .background(gold.opacity(0.12), in: Capsule())
+                        .accessibilityLabel("عدد التطبيقات \(apps.count)")
                 }
-                TextField("ابحث عن تطبيق أو Bundle ID", text: $searchText)
-                    .padding(.horizontal, 14)
-                    .frame(minHeight: 50)
-                    .background(Color.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 14))
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
+
+                HStack(spacing: 9) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField("ابحث عن تطبيق", text: $searchText)
+                        .font(.body)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .submitLabel(.search)
+                    if !searchText.isEmpty {
+                        Button {
+                            searchText = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .accessibilityLabel("مسح البحث")
+                    }
+                }
+                .padding(.horizontal, 14)
+                .frame(minHeight: 46)
+                .background(Color.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 14))
+
                 appsSection
             }
-            .frame(maxWidth: 650)
+            .frame(maxWidth: 560)
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 16)
-            .padding(.top, 16)
-            .padding(.bottom, 28)
+            .padding(.top, 12)
+            .padding(.bottom, 20)
         }
-        .background(backgroundColor)
+        .background(backgroundColor.ignoresSafeArea())
+        .scrollDismissesKeyboard(.interactively)
         .refreshable { await loadApps() }
     }
 
@@ -508,18 +538,44 @@ struct ContentView: View {
     }
 
     private func appRow(_ app: StoreApp) -> some View {
-        HStack(alignment: .center, spacing: 14) {
+        ViewThatFits(in: .horizontal) {
+            appRowLayout(app, compact: false)
+            appRowLayout(app, compact: true)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    @ViewBuilder
+    private func appRowLayout(_ app: StoreApp, compact: Bool) -> some View {
+        if compact {
+            VStack(alignment: .leading, spacing: 12) {
+                appIdentity(app)
+                appInstallControl(app)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        } else {
+            HStack(alignment: .center, spacing: 12) {
+                appIdentity(app)
+                appInstallControl(app)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+        }
+    }
+
+    private func appIdentity(_ app: StoreApp) -> some View {
+        HStack(alignment: .center, spacing: 12) {
             Image(systemName: "app.fill")
-                .font(.system(size: 29))
+                .font(.system(size: 23))
                 .foregroundStyle(gold)
                 .frame(width: iconSize, height: iconSize)
-                .background(gold.opacity(0.1), in: RoundedRectangle(cornerRadius: 15))
-            VStack(alignment: .leading, spacing: 5) {
+                .background(gold.opacity(0.12), in: RoundedRectangle(cornerRadius: 13))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
                 Text(app.name)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
+                    .font(.subheadline.weight(.semibold))
                     .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
                 Text("الإصدار \(app.version)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -530,26 +586,28 @@ struct ContentView: View {
                         .lineLimit(2)
                 }
             }
-            Spacer(minLength: 4)
-            if let path = app.ipaPath, !path.isEmpty {
-                Button {
-                    Task { await installApp(app) }
-                } label: {
-                    Label("تثبيت", systemImage: "square.and.arrow.down.fill")
-                        .font(.subheadline.bold())
-                        .frame(minWidth: 72, minHeight: 44)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(gold)
-                .accessibilityLabel("تثبيت \(app.name)")
-            } else {
-                Image(systemName: "lock.shield")
-                    .foregroundStyle(.secondary)
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 18))
+    }
+
+    @ViewBuilder
+    private func appInstallControl(_ app: StoreApp) -> some View {
+        if let path = app.ipaPath, !path.isEmpty {
+            Button {
+                Task { await installApp(app) }
+            } label: {
+                Label("تثبيت", systemImage: "arrow.down.to.line")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(minWidth: 74, minHeight: 44)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(gold)
+            .accessibilityLabel("تثبيت \(app.name)")
+        } else {
+            Label("غير متاح", systemImage: "lock.shield")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var categoriesView: some View {
@@ -567,7 +625,8 @@ struct ContentView: View {
             .padding(16)
             .padding(.bottom, 28)
         }
-        .background(backgroundColor)
+        .background(backgroundColor.ignoresSafeArea())
+        .scrollDismissesKeyboard(.interactively)
         .refreshable { await loadApps() }
     }
 
