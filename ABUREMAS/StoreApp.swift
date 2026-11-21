@@ -9,6 +9,7 @@ struct StoreApp: Identifiable, Decodable {
     let description: String?
     let iconPath: String?
     let ipaPath: String?
+    let sizeBytes: Int64?
     let published: Bool
 
     enum CodingKeys: String, CodingKey {
@@ -19,6 +20,7 @@ struct StoreApp: Identifiable, Decodable {
         case description
         case iconPath = "icon_path"
         case ipaPath = "ipa_path"
+        case sizeBytes = "size_bytes"
         case published
     }
 }

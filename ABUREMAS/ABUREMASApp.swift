@@ -309,7 +309,6 @@ struct ContentView: View {
 
     @State private var selectedTab = 0
     @State private var searchText = ""
-    @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 48
     @State private var isSigningOut = false
     @State private var signOutError: String?
     @State private var downloadError: String?
@@ -527,66 +526,63 @@ struct ContentView: View {
                     description: Text(searchText.isEmpty ? "يمكن لمدير المتجر نشر التطبيقات من لوحة الإدارة" : "جرّب البحث باسم آخر")
                 )
             } else {
-                LazyVStack(spacing: 12) {
+                LazyVStack(spacing: 0) {
                     ForEach(filteredApps) { app in
                         appRow(app)
+                        if app.id != filteredApps.last?.id {
+                            Rectangle()
+                                .fill(Color.white.opacity(0.09))
+                                .frame(height: 1)
+                                .padding(.horizontal, 14)
+                        }
                     }
                 }
+                .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 20))
             }
         }
     }
 
+
+    // Compact Arabic app list for narrow and large iPhones.
     private func appRow(_ app: StoreApp) -> some View {
-        ViewThatFits(in: .horizontal) {
-            appRowLayout(app, compact: false)
-            appRowLayout(app, compact: true)
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 16))
-    }
-
-    @ViewBuilder
-    private func appRowLayout(_ app: StoreApp, compact: Bool) -> some View {
-        if compact {
-            VStack(alignment: .leading, spacing: 12) {
-                appIdentity(app)
-                appInstallControl(app)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-        } else {
-            HStack(alignment: .center, spacing: 12) {
-                appIdentity(app)
-                appInstallControl(app)
-                    .fixedSize(horizontal: true, vertical: false)
-            }
-        }
-    }
-
-    private func appIdentity(_ app: StoreApp) -> some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: 11) {
             Image(systemName: "app.fill")
-                .font(.system(size: 23))
+                .font(.system(size: 23, weight: .medium))
                 .foregroundStyle(gold)
-                .frame(width: iconSize, height: iconSize)
-                .background(gold.opacity(0.12), in: RoundedRectangle(cornerRadius: 13))
+                .frame(width: 54, height: 54)
+                .background(gold.opacity(0.13), in: RoundedRectangle(cornerRadius: 13))
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 4) {
+
+            VStack(alignment: .leading, spacing: 5) {
                 Text(app.name)
                     .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
                     .lineLimit(2)
+
                 Text("الإصدار \(app.version)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if let description = app.description, !description.isEmpty {
+                    .lineLimit(1)
+
+                if let bytes = app.sizeBytes, bytes > 0 {
+                    Text(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                } else if let description = app.description, !description.isEmpty {
                     Text(description)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+
+            appInstallControl(app)
         }
+        .environment(\.layoutDirection, .rightToLeft)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
@@ -595,17 +591,21 @@ struct ContentView: View {
             Button {
                 Task { await installApp(app) }
             } label: {
-                Label("تثبيت", systemImage: "arrow.down.to.line")
+                Text("تثبيت")
                     .font(.subheadline.weight(.semibold))
-                    .frame(minWidth: 74, minHeight: 44)
+                    .foregroundStyle(backgroundColor)
+                    .frame(minWidth: 68, minHeight: 38)
+                    .padding(.horizontal, 7)
+                    .background(gold, in: Capsule())
             }
-            .buttonStyle(.borderedProminent)
-            .tint(gold)
+            .buttonStyle(.plain)
+            .fixedSize(horizontal: true, vertical: false)
             .accessibilityLabel("تثبيت \(app.name)")
         } else {
-            Label("غير متاح", systemImage: "lock.shield")
+            Text("غير متاح")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
     }
 
