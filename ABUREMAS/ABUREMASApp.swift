@@ -546,11 +546,7 @@ struct ContentView: View {
     // Compact Arabic app list for narrow and large iPhones.
     private func appRow(_ app: StoreApp) -> some View {
         HStack(alignment: .center, spacing: 11) {
-            Image(systemName: "app.fill")
-                .font(.system(size: 23, weight: .medium))
-                .foregroundStyle(gold)
-                .frame(width: 54, height: 54)
-                .background(gold.opacity(0.13), in: RoundedRectangle(cornerRadius: 13))
+            StoreAppIcon(path: app.iconPath, gold: gold)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 5) {
@@ -790,5 +786,65 @@ struct ContentView: View {
             isAdmin = false
             adminStatus = "خطأ في قراءة صلاحية الحساب: \(error.localizedDescription)"
         }
+    }
+}
+
+
+// MARK: - Private app icons
+// icon_path may be an HTTPS image URL or a relative path inside the private ipa-files bucket.
+// No icon path means the store uses a consistent placeholder until an icon is uploaded.
+private struct StoreAppIcon: View {
+    let path: String?
+    let gold: Color
+
+    @State private var imageURL: URL?
+
+    var body: some View {
+        Group {
+            if let imageURL {
+                AsyncImage(url: imageURL) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        placeholder
+                    }
+                }
+            } else {
+                placeholder
+            }
+        }
+        .frame(width: 54, height: 54)
+        .clipShape(RoundedRectangle(cornerRadius: 13))
+        .task(id: path) {
+            imageURL = nil
+            guard let path, !path.isEmpty else { return }
+
+            if let url = URL(string: path),
+               url.scheme == "https", url.host != nil {
+                imageURL = url
+                return
+            }
+
+            guard !path.hasPrefix("/"),
+                  !path.contains(".."),
+                  !path.contains("\\"),
+                  !path.contains("://") else { return }
+
+            do {
+                imageURL = try await SupabaseManager.shared.client.storage
+                    .from("ipa-files")
+                    .createSignedURL(path: path, expiresIn: 3600)
+            } catch {
+                // Missing or inaccessible icon: retain the placeholder.
+            }
+        }
+    }
+
+    private var placeholder: some View {
+        Image(systemName: "app.fill")
+            .font(.system(size: 23, weight: .medium))
+            .foregroundStyle(gold)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(gold.opacity(0.13))
     }
 }
