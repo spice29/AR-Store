@@ -309,6 +309,9 @@ struct ContentView: View {
 
     @State private var selectedTab = 0
     @State private var searchText = ""
+    @AppStorage("aburemas.favoriteAppIDs") private var favoriteAppIDs = ""
+    @State private var showFavoritesOnly = false
+    @State private var sortByName = false
     @State private var isSigningOut = false
     @State private var signOutError: String?
     @State private var downloadError: String?
@@ -477,6 +480,7 @@ struct ContentView: View {
                 .frame(minHeight: 46)
                 .background(Color.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 14))
 
+                discoveryControls
                 appsSection
             }
             .frame(maxWidth: 520)
@@ -490,10 +494,56 @@ struct ContentView: View {
         .refreshable { await loadApps() }
     }
 
+    private var favorites: Set<String> {
+        Set(favoriteAppIDs.split(separator: ",").map(String.init))
+    }
+
+    private func toggleFavorite(_ app: StoreApp) {
+        var updated = favorites
+        if !updated.insert(app.id.uuidString).inserted {
+            updated.remove(app.id.uuidString)
+        }
+        favoriteAppIDs = updated.sorted().joined(separator: ",")
+    }
+
+    private var discoveryControls: some View {
+        HStack(spacing: 10) {
+            Button {
+                showFavoritesOnly.toggle()
+            } label: {
+                Label("المفضلة", systemImage: showFavoritesOnly ? "heart.fill" : "heart")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(showFavoritesOnly ? backgroundColor : gold)
+                    .padding(.horizontal, 12)
+                    .frame(height: 34)
+                    .background(showFavoritesOnly ? gold : gold.opacity(0.12), in: Capsule())
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                sortByName.toggle()
+            } label: {
+                Label(sortByName ? "حسب الاسم" : "الترتيب الافتراضي", systemImage: "arrow.up.arrow.down")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            Spacer(minLength: 0)
+        }
+        .environment(\.layoutDirection, .rightToLeft)
+    }
+
     private var filteredApps: [StoreApp] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return apps }
-        return apps.filter { $0.name.localizedCaseInsensitiveContains(query) || $0.bundleID.localizedCaseInsensitiveContains(query) || ($0.description?.localizedCaseInsensitiveContains(query) ?? false) }
+        let matching = apps.filter { app in
+            (!showFavoritesOnly || favorites.contains(app.id.uuidString)) &&
+            (query.isEmpty || app.name.localizedCaseInsensitiveContains(query) ||
+             app.bundleID.localizedCaseInsensitiveContains(query) ||
+             (app.description?.localizedCaseInsensitiveContains(query) ?? false))
+        }
+        return sortByName ? matching.sorted {
+            $0.name.localizedStandardCompare($1.name) == .orderedAscending
+        } : matching
     }
 
     private var appsSection: some View {
@@ -576,7 +626,20 @@ struct ContentView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            appInstallControl(app)
+            VStack(spacing: 7) {
+                appInstallControl(app)
+                Button {
+                    toggleFavorite(app)
+                } label: {
+                    Image(systemName: favorites.contains(app.id.uuidString) ? "heart.fill" : "heart")
+                        .font(.system(size: 15))
+                        .foregroundStyle(gold)
+                        .frame(width: 36, height: 30)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(favorites.contains(app.id.uuidString) ? "إزالة من المفضلة" : "إضافة إلى المفضلة")
+            }
         }
         .environment(\.layoutDirection, .rightToLeft)
         .padding(.horizontal, 12)
@@ -621,6 +684,7 @@ struct ContentView: View {
                     .padding(.horizontal, 12)
                     .frame(minHeight: 44)
                     .background(Color.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 12))
+                discoveryControls
                 appsSection
             }
             .padding(16)
