@@ -20,6 +20,7 @@ final class AppService {
                 description,
                 icon_path,
                 ipa_path,
+                size_bytes,
                 published
             """)
             .eq("published", value: true)
