@@ -311,6 +311,7 @@ struct ContentView: View {
 
     @State private var selectedTab = 0
     @State private var searchText = ""
+    @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 56
     @State private var isSigningOut = false
     @State private var signOutError: String?
     @State private var downloadError: String?
@@ -410,7 +411,7 @@ struct ContentView: View {
 
     private var homeView: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 20) {
                 HStack(spacing: 14) {
                     Image(systemName: "square.stack.3d.up.fill")
                         .font(.system(size: 29))
@@ -418,7 +419,7 @@ struct ContentView: View {
                         .frame(width: 56, height: 56)
                         .background(gold.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("ABUREMAS").font(.title2.bold())
+                        Text("ABUREMAS").font(.title2.bold()).lineLimit(1).minimumScaleFactor(0.8)
                         Text("متجر أبو ريماس الخاص")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -445,7 +446,9 @@ struct ContentView: View {
                         .background(gold.opacity(0.12), in: Capsule())
                 }
                 TextField("ابحث عن تطبيق أو Bundle ID", text: $searchText)
-                    .textFieldStyle(.roundedBorder)
+                    .padding(.horizontal, 14)
+                    .frame(minHeight: 50)
+                    .background(Color.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 14))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 appsSection
@@ -454,7 +457,7 @@ struct ContentView: View {
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 16)
             .padding(.top, 16)
-            .padding(.bottom, 110)
+            .padding(.bottom, 28)
         }
         .background(backgroundColor)
         .refreshable { await loadApps() }
@@ -509,13 +512,14 @@ struct ContentView: View {
             Image(systemName: "app.fill")
                 .font(.system(size: 29))
                 .foregroundStyle(gold)
-                .frame(width: 58, height: 58)
+                .frame(width: iconSize, height: iconSize)
                 .background(gold.opacity(0.1), in: RoundedRectangle(cornerRadius: 15))
             VStack(alignment: .leading, spacing: 5) {
                 Text(app.name)
                     .font(.headline)
                     .foregroundStyle(.primary)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("الإصدار \(app.version)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -526,13 +530,14 @@ struct ContentView: View {
                         .lineLimit(2)
                 }
             }
-            Spacer(minLength: 0)
+            Spacer(minLength: 4)
             if let path = app.ipaPath, !path.isEmpty {
                 Button {
                     Task { await installApp(app) }
                 } label: {
                     Label("تثبيت", systemImage: "square.and.arrow.down.fill")
                         .font(.subheadline.bold())
+                        .frame(minWidth: 72, minHeight: 44)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(gold)
@@ -543,6 +548,7 @@ struct ContentView: View {
             }
         }
         .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 18))
     }
 
@@ -559,7 +565,7 @@ struct ContentView: View {
                 appsSection
             }
             .padding(16)
-            .padding(.bottom, 100)
+            .padding(.bottom, 28)
         }
         .background(backgroundColor)
         .refreshable { await loadApps() }
