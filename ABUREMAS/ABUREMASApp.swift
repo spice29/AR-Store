@@ -312,6 +312,7 @@ struct ContentView: View {
     @AppStorage("aburemas.favoriteAppIDs") private var favoriteAppIDs = ""
     @State private var showFavoritesOnly = false
     @State private var sortByName = false
+    @State private var selectedAppDetails: StoreApp?
     @State private var isSigningOut = false
     @State private var signOutError: String?
     @State private var downloadError: String?
@@ -393,6 +394,7 @@ struct ContentView: View {
             }
         }
         .tint(gold)
+        .sheet(item: $selectedAppDetails) { app in appDetailsSheet(app) }
         .toolbarBackground(backgroundColor, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
         
@@ -617,7 +619,8 @@ struct ContentView: View {
                     Text(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
-                } else if let description = app.description, !description.isEmpty {
+                }
+                if let description = app.description, !description.isEmpty {
                     Text(description)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
@@ -628,6 +631,12 @@ struct ContentView: View {
 
             VStack(spacing: 7) {
                 appInstallControl(app)
+                Button { selectedAppDetails = app } label: {
+                    Image(systemName: "info.circle")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 36, height: 30)
+                }
+                .buttonStyle(.plain)
                 Button {
                     toggleFavorite(app)
                 } label: {
@@ -645,6 +654,45 @@ struct ContentView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, minHeight: 74)
+    }
+
+
+    private func appDetailsSheet(_ app: StoreApp) -> some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    Text(app.name).font(.title2.bold())
+                    Text(app.bundleID).font(.caption).foregroundStyle(.secondary)
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text("الإصدار").font(.caption).foregroundStyle(.secondary)
+                            Text(app.version).font(.headline)
+                        }
+                        Spacer()
+                        VStack(alignment: .leading) {
+                            Text("حجم النسخة").font(.caption).foregroundStyle(.secondary)
+                            Text(app.sizeBytes.flatMap { $0 > 0 ? ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) : nil } ?? "غير محدد").font(.headline)
+                        }
+                    }
+                    .padding(16)
+                    .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+                    Text("نبذة عن التطبيق").font(.headline).foregroundStyle(gold)
+                    Text(app.description?.isEmpty == false ? (app.description ?? "") : "لم تُضف نبذة لهذا التطبيق بعد.")
+                        .foregroundStyle(.secondary)
+                    appInstallControl(app)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(20)
+                .environment(\.layoutDirection, .rightToLeft)
+            }
+            .background(backgroundColor.ignoresSafeArea())
+            .navigationTitle("تفاصيل التطبيق")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("إغلاق") { selectedAppDetails = nil }
+                }
+            }
+        }
     }
 
     @ViewBuilder

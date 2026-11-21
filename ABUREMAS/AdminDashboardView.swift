@@ -9,10 +9,12 @@ private struct AdminApp: Identifiable, Decodable {
     let version: String
     let description: String?
     let ipaPath: String?
+    let sizeBytes: Int64?
     let published: Bool
 
     enum CodingKeys: String, CodingKey {
         case id, name, version, description, published
+        case sizeBytes = "size_bytes"
         case bundleID = "bundle_id"
         case ipaPath = "ipa_path"
     }
@@ -24,10 +26,12 @@ private struct AppPayload: Encodable {
     let version: String
     let description: String?
     let ipaPath: String?
+    let sizeBytes: Int64?
     let published: Bool
 
     enum CodingKeys: String, CodingKey {
         case name, version, description, published
+        case sizeBytes = "size_bytes"
         case bundleID = "bundle_id"
         case ipaPath = "ipa_path"
     }
@@ -107,6 +111,11 @@ struct AdminDashboardView: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
+                                if let bytes = app.sizeBytes, bytes > 0 {
+                                    Text(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
                                 Spacer(minLength: 4)
                                 VStack(alignment: .trailing, spacing: 6) {
                                     Text(app.published ? "منشور" : "مسودة")
@@ -170,7 +179,7 @@ struct AdminDashboardView: View {
         do {
             apps = try await SupabaseManager.shared.client
                 .from("apps")
-                .select("id,name,bundle_id,version,description,ipa_path,published")
+                .select("id,name,bundle_id,version,description,ipa_path,size_bytes,published")
                 .order("created_at", ascending: false)
                 .execute()
                 .value
@@ -192,6 +201,7 @@ private struct AppEditorView: View {
     @State private var useFile = false
     @State private var selectedIPA: Data?
     @State private var selectedSize: Int64 = 0
+    @State private var manualSizeMB = ""
     @State private var selectedFilename = ""
     @State private var showingImporter = false
     @State private var published: Bool
@@ -209,6 +219,7 @@ private struct AppEditorView: View {
         _appDescription = State(initialValue: app?.description ?? "")
         _ipaURL = State(initialValue: app?.ipaPath?.hasPrefix("https://") == true ? app!.ipaPath! : "")
         _published = State(initialValue: app?.published ?? false)
+        _manualSizeMB = State(initialValue: app?.sizeBytes.map { String(format: "%.2f", Double($0) / 1_048_576) } ?? "")
     }
 
     var body: some View {
@@ -220,6 +231,8 @@ private struct AppEditorView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                     TextField("الإصدار", text: $version)
+                    TextField("الحجم بالميجابايت (للرابط الخارجي)", text: $manualSizeMB)
+                        .keyboardType(.decimalPad)
                     TextField("الوصف", text: $appDescription, axis: .vertical)
                         .lineLimit(2...5)
                 }
@@ -389,6 +402,7 @@ private struct AppEditorView: View {
                 version: cleanVersion,
                 description: appDescription.isEmpty ? nil : appDescription,
                 ipaPath: finalPath,
+                sizeBytes: useFile && selectedIPA != nil ? selectedSize : (Double(manualSizeMB.replacingOccurrences(of: ",", with: ".")).map { Int64(max(0, $0) * 1_048_576) } ?? app?.sizeBytes),
                 published: published
             )
             let table = SupabaseManager.shared.client.from("apps")
