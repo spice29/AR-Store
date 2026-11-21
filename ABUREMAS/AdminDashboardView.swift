@@ -2,6 +2,10 @@ import SwiftUI
 import Supabase
 import UniformTypeIdentifiers
 
+private extension UTType {
+    static let ipaArchive = UTType(importedAs: "com.apple.itunes.ipa", conformingTo: .data)
+}
+
 private struct AdminApp: Identifiable, Decodable {
     let id: UUID
     let name: String
@@ -317,11 +321,11 @@ private struct AppEditorView: View {
                     Button("إلغاء") { dismiss() }
                 }
             }
-            .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item]) { result in
+            .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.ipaArchive, .data, .zip]) { result in
                 do {
                     let url = try result.get()
                     guard url.pathExtension.lowercased() == "ipa" else {
-                        errorMessage = "اختر ملفًا بامتداد .ipa"
+                        errorMessage = "اختر ملف IPA نفسه بامتداد .ipa وليس ملف ZIP."
                         return
                     }
                     let granted = url.startAccessingSecurityScopedResource()
@@ -329,7 +333,7 @@ private struct AppEditorView: View {
                     let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
                     let fileSize = (attributes[.size] as? NSNumber)?.int64Value ?? 0
                     guard fileSize > 0 && fileSize <= 150 * 1024 * 1024 else {
-                        errorMessage = "حجم الملف يجب أن يكون أقل من 150 ميجابايت في هذه النسخة."
+                        errorMessage = "حجم ملف IPA أكبر من 150 ميجابايت، وهذا الحد الحالي للرفع المباشر."
                         return
                     }
                     let data = try Data(contentsOf: url)
