@@ -392,7 +392,7 @@ struct ContentView: View {
         .tint(gold)
         .toolbarBackground(backgroundColor, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
-        .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 0) }
+        
         .alert("تعذر فتح الملف", isPresented: Binding(
             get: { downloadError != nil },
             set: { if !$0 { downloadError = nil } }
@@ -414,7 +414,7 @@ struct ContentView: View {
 
     private var homeView: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
                     Image(systemName: "square.stack.3d.up.fill")
                         .font(.system(size: 22, weight: .semibold))
@@ -434,9 +434,8 @@ struct ContentView: View {
                     }
                     Spacer(minLength: 0)
                 }
-                .padding(14)
+                .padding(.vertical, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 18))
 
                 HStack(alignment: .center, spacing: 10) {
                     VStack(alignment: .leading, spacing: 3) {
@@ -480,7 +479,7 @@ struct ContentView: View {
 
                 appsSection
             }
-            .frame(maxWidth: 560)
+            .frame(maxWidth: 520)
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 16)
             .padding(.top, 12)
@@ -537,7 +536,7 @@ struct ContentView: View {
                         }
                     }
                 }
-                .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 20))
+                .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 16))
             }
         }
     }
@@ -549,7 +548,7 @@ struct ContentView: View {
             Image(systemName: "app.fill")
                 .font(.system(size: 23, weight: .medium))
                 .foregroundStyle(gold)
-                .frame(width: 54, height: 54)
+                .frame(width: 48, height: 48)
                 .background(gold.opacity(0.13), in: RoundedRectangle(cornerRadius: 13))
                 .accessibilityHidden(true)
 
@@ -581,8 +580,8 @@ struct ContentView: View {
         }
         .environment(\.layoutDirection, .rightToLeft)
         .padding(.horizontal, 12)
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, minHeight: 74)
     }
 
     @ViewBuilder
@@ -594,7 +593,7 @@ struct ContentView: View {
                 Text("تثبيت")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(backgroundColor)
-                    .frame(minWidth: 68, minHeight: 38)
+                    .frame(minWidth: 62, minHeight: 36)
                     .padding(.horizontal, 7)
                     .background(gold, in: Capsule())
             }
@@ -611,14 +610,17 @@ struct ContentView: View {
 
     private var categoriesView: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 12) {
                 Text("تطبيقات المتجر")
                     .font(.title3.bold())
                 Text("كل التطبيقات المنشورة حاليًا")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 TextField("ابحث في التطبيقات", text: $searchText)
-                    .textFieldStyle(.roundedBorder)
+                    .font(.body)
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 44)
+                    .background(Color.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 12))
                 appsSection
             }
             .padding(16)
