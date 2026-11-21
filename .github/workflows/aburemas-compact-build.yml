@@ -1,0 +1,49 @@
+name: ABUREMAS iOS build (compact UI)
+
+on:
+  push:
+    branches: [main, 'fix/compact-iphone-layout-20261121']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unsigned-ipa:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate --spec project.yml
+      - name: Build iOS app without signing
+        run: |
+          set -o pipefail
+          xcodebuild -project ABUREMAS.xcodeproj \
+            -scheme ABUREMAS \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/ABUREMASBuild" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Package unsigned IPA
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/ABUREMASBuild/Build/Products/Release-iphoneos/ABUREMAS.app"
+          test -d "$APP"
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/"
+          cd "$RUNNER_TEMP/ipa"
+          zip -qry "$GITHUB_WORKSPACE/ABUREMAS-unsigned.ipa" Payload
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ABUREMAS-unsigned
+          path: ABUREMAS-unsigned.ipa
+          retention-days: 7
