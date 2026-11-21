@@ -127,7 +127,6 @@ struct PasswordRecoveryView: View {
         ScrollView {
             VStack(spacing: 22) {
 
-                Spacer(minLength: 55)
 
                 Image(systemName: "lock.rotation")
                     .font(.system(size: 66))
@@ -230,9 +229,8 @@ struct PasswordRecoveryView: View {
                 .textFieldStyle(.roundedBorder)
                 .padding(.top, 12)
 
-                Spacer(minLength: 40)
             }
-            .frame(maxWidth: 460)
+            .frame(maxWidth: 420)
             .frame(maxWidth: .infinity)
             .padding(24)
         }
@@ -395,6 +393,7 @@ struct ContentView: View {
         .tint(gold)
         .toolbarBackground(backgroundColor, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
+        .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 0) }
         .alert("تعذر فتح الملف", isPresented: Binding(
             get: { downloadError != nil },
             set: { if !$0 { downloadError = nil } }
