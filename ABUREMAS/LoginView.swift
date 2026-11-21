@@ -24,15 +24,14 @@ struct LoginView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 22) {
-                Spacer(minLength: 50)
+            VStack(spacing: 18) {
 
                 Image(systemName: "lock.shield.fill")
-                    .font(.system(size: 64))
+                    .font(.system(size: 44))
                     .foregroundStyle(gold)
 
                 Text("ABUREMAS")
-                    .font(.system(size: 36, weight: .bold))
+                    .font(.system(size: 28, weight: .bold))
 
                 Text("متجر أبو ريماس الخاص")
                     .foregroundStyle(.secondary)
@@ -43,12 +42,14 @@ struct LoginView: View {
                     loginForm
                 }
 
-                Spacer(minLength: 40)
             }
-            .frame(maxWidth: 460)
+            .frame(maxWidth: 420)
             .frame(maxWidth: .infinity)
-            .padding(24)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 32)
         }
+        .scrollDismissesKeyboard(.interactively)
+        .background(Color(red: 0.04, green: 0.07, blue: 0.13).ignoresSafeArea())
         .fullScreenCover(isPresented: $isLoggedIn) {
             ContentView()
         }
