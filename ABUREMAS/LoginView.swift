@@ -3,7 +3,8 @@ import SwiftUI
 import Supabase
 
 struct LoginView: View {
-    @State private var email = ""
+    @AppStorage("aburemas.lastLoginEmail") private var email = ""
+    @State private var isCheckingSession = true
     @State private var password = ""
     @State private var isLoading = false
     @State private var errorMessage = ""
@@ -36,7 +37,9 @@ struct LoginView: View {
                 Text("متجر أبو ريماس الخاص")
                     .foregroundStyle(.secondary)
 
-                if showRecovery {
+                if isCheckingSession {
+                    ProgressView("جاري استعادة جلسة الدخول...").tint(gold).padding(.vertical, 20)
+                } else if showRecovery {
                     recoveryForm
                 } else {
                     loginForm
@@ -53,6 +56,7 @@ struct LoginView: View {
         .fullScreenCover(isPresented: $isLoggedIn) {
             ContentView()
         }
+        .task { await restoreSession() }
         .onReceive(NotificationCenter.default.publisher(for: .aburemasDidSignOut)) { _ in
             isLoggedIn = false
             password = ""
@@ -204,6 +208,32 @@ struct LoginView: View {
 
     private struct StoreProfile: Decodable {
         let role: String
+    }
+
+    @MainActor
+    private func restoreSession() async {
+        isCheckingSession = true
+        defer { isCheckingSession = false }
+        let client = SupabaseManager.shared.client
+        do {
+            let session = try await client.auth.session
+            let profile: StoreProfile = try await client
+                .from("profiles")
+                .select("role")
+                .eq("id", value: session.user.id.uuidString)
+                .single()
+                .execute()
+                .value
+            guard ["admin", "user"].contains(profile.role) else {
+                try? await client.auth.signOut()
+                return
+            }
+            email = session.user.email ?? email
+            password = ""
+            isLoggedIn = true
+        } catch {
+            isLoggedIn = false
+        }
     }
 
     // MARK: - Sign In
