@@ -1,9 +1,45 @@
 import SwiftUI
 import Supabase
 import UniformTypeIdentifiers
+import UIKit
 
 private extension UTType {
     static let ipaArchive = UTType(importedAs: "com.apple.itunes.ipa", conformingTo: .data)
+}
+
+/// Uses UIKit's import-mode document picker to avoid SwiftUI fileImporter
+/// filtering IPA files that iOS Files providers expose with unexpected UTIs.
+private struct IPAFilePicker: UIViewControllerRepresentable {
+    let onPick: (URL) -> Void
+    let onError: (String) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let picker = UIDocumentPickerViewController(
+            documentTypes: ["public.item", "public.data", "public.content",
+                            "public.archive", "com.apple.itunes.ipa"],
+            in: .import
+        )
+        picker.allowsMultipleSelection = false
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ controller: UIDocumentPickerViewController, context: Context) {}
+
+    final class Coordinator: NSObject, UIDocumentPickerDelegate {
+        let parent: IPAFilePicker
+        init(_ parent: IPAFilePicker) { self.parent = parent }
+
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            guard let url = urls.first else {
+                parent.onError("لم يتم تحديد ملف.")
+                return
+            }
+            parent.onPick(url)
+        }
+    }
 }
 
 private struct AdminApp: Identifiable, Decodable {
@@ -321,9 +357,23 @@ private struct AppEditorView: View {
                     Button("إلغاء") { dismiss() }
                 }
             }
-            .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item, .content, .data, .archive, .ipaArchive]) { result in
+            .sheet(isPresented: $showingImporter) {
+                IPAFilePicker(
+                    onPick: { url in
+                        showingImporter = false
+                        readSelectedIPA(url)
+                    },
+                    onError: { message in
+                        showingImporter = false
+                        errorMessage = message
+                    }
+                )
+            }
+        }
+    }
+
+    private func readSelectedIPA(_ url: URL) {
                 do {
-                    let url = try result.get()
                     guard url.pathExtension.lowercased() == "ipa" else {
                         errorMessage = "اختر ملف IPA نفسه بامتداد .ipa وليس ملف ZIP."
                         return
@@ -348,8 +398,6 @@ private struct AppEditorView: View {
                 } catch {
                     errorMessage = "تعذر قراءة الملف: \(error.localizedDescription)"
                 }
-            }
-        }
     }
 
     @MainActor
