@@ -83,6 +83,7 @@ struct AdminDashboardView: View {
     @State private var errorMessage = ""
     @State private var showingEditor = false
     @State private var editingApp: AdminApp?
+    @State private var appToDelete: AdminApp?
 
     private let gold = Color(red: 0.91, green: 0.73, blue: 0.35)
 
@@ -170,6 +171,21 @@ struct AdminDashboardView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 14))
                         }
                         .buttonStyle(.plain)
+                        .contextMenu {
+                            Button("حذف التطبيق", systemImage: "trash", role: .destructive) {
+                                appToDelete = app
+                            }
+                        }
+                        .overlay(alignment: .leading) {
+                            Button(role: .destructive) {
+                                appToDelete = app
+                            } label: {
+                                Image(systemName: "trash")
+                                    .foregroundStyle(.red)
+                                    .frame(width: 40, height: 44)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
                 .padding(.horizontal, 16)
@@ -183,6 +199,20 @@ struct AdminDashboardView: View {
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
+            }
+            .confirmationDialog("حذف التطبيق من المتجر؟", isPresented: Binding(
+                get: { appToDelete != nil },
+                set: { if !$0 { appToDelete = nil } }
+            )) {
+                Button("حذف التطبيق", role: .destructive) {
+                    if let target = appToDelete {
+                        appToDelete = nil
+                        Task { await deleteApp(target) }
+                    }
+                }
+                Button("إلغاء", role: .cancel) { appToDelete = nil }
+            } message: {
+                Text("سيحذف سجل التطبيق من المتجر دون حذف ملف IPA المخزن.")
             }
             .task { await loadApps() }
             .refreshable { await loadApps() }
@@ -208,6 +238,23 @@ struct AdminDashboardView: View {
         .padding(.vertical, 16)
         .background(Color.white.opacity(0.06))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    @MainActor
+    private func deleteApp(_ app: AdminApp) async {
+        do {
+            try await SupabaseManager.shared.client
+                .from("apps")
+                .delete()
+                .eq("id", value: app.id.uuidString)
+                .execute()
+            await loadApps()
+            if apps.contains(where: { $0.id == app.id }) {
+                errorMessage = "لم يتم حذف التطبيق؛ تحقق من صلاحيات الحذف."
+            }
+        } catch {
+            errorMessage = "تعذر حذف التطبيق: \(error.localizedDescription)"
+        }
     }
 
     @MainActor
