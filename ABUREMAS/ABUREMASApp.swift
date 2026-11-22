@@ -629,12 +629,12 @@ struct ContentView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            VStack(spacing: 7) {
+            VStack(spacing: 8) {
                 appInstallControl(app)
                 Button { selectedAppDetails = app } label: {
                     Image(systemName: "info.circle")
                         .foregroundStyle(.secondary)
-                        .frame(width: 36, height: 30)
+                        .frame(minWidth: 44, minHeight: 44)
                 }
                 .buttonStyle(.plain)
                 Button {
@@ -643,7 +643,7 @@ struct ContentView: View {
                     Image(systemName: favorites.contains(app.id.uuidString) ? "heart.fill" : "heart")
                         .font(.system(size: 15))
                         .foregroundStyle(gold)
-                        .frame(width: 36, height: 30)
+                        .frame(minWidth: 44, minHeight: 44)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -704,7 +704,7 @@ struct ContentView: View {
                 Text("تثبيت")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(backgroundColor)
-                    .frame(minWidth: 62, minHeight: 36)
+                    .frame(minWidth: 68, minHeight: 44)
                     .padding(.horizontal, 7)
                     .background(gold, in: Capsule())
             }
