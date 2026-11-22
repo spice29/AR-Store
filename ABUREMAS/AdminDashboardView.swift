@@ -332,8 +332,8 @@ private struct AppEditorView: View {
                     defer { if granted { url.stopAccessingSecurityScopedResource() } }
                     let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
                     let fileSize = (attributes[.size] as? NSNumber)?.int64Value ?? 0
-                    guard fileSize > 0 && fileSize <= 150 * 1024 * 1024 else {
-                        errorMessage = "حجم ملف IPA أكبر من 150 ميجابايت، وهذا الحد الحالي للرفع المباشر."
+                    guard fileSize > 0 && fileSize <= 300 * 1024 * 1024 else {
+                        errorMessage = "حجم ملف IPA أكبر من 300 ميجابايت، وهذا الحد الحالي للرفع المباشر."
                         return
                     }
                     let data = try Data(contentsOf: url, options: [.mappedIfSafe])
