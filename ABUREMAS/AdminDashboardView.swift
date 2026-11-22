@@ -130,62 +130,69 @@ struct AdminDashboardView: View {
                     }
 
                     ForEach(apps) { app in
-                        Button {
-                            editingApp = app
-                            showingEditor = true
-                        } label: {
-                            HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(alignment: .top, spacing: 12) {
                                 Image(systemName: "app.fill")
                                     .font(.title2)
                                     .foregroundStyle(gold)
-                                    .frame(width: 38)
+                                    .frame(width: 38, height: 44)
 
-                                VStack(alignment: .leading, spacing: 4) {
+                                VStack(alignment: .leading, spacing: 5) {
                                     Text(app.name)
                                         .font(.headline)
                                         .foregroundStyle(.primary)
+                                        .lineLimit(2)
+                                        .fixedSize(horizontal: false, vertical: true)
                                     Text(app.bundleID)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                         .lineLimit(1)
+                                        .truncationMode(.middle)
                                     Text("الإصدار \(app.version)")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
+                                    if let bytes = app.sizeBytes, bytes > 0 {
+                                        Text(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
-                                if let bytes = app.sizeBytes, bytes > 0 {
-                                    Text(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                                Text(app.published ? "منشور" : "مسودة")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(app.published ? .green : .orange)
+                                    .fixedSize()
+                            }
+
+                            HStack(spacing: 12) {
+                                Button {
+                                    editingApp = app
+                                    showingEditor = true
+                                } label: {
+                                    Label("تعديل", systemImage: "pencil")
+                                        .frame(maxWidth: .infinity, minHeight: 44)
+                                        .contentShape(Rectangle())
                                 }
-                                Spacer(minLength: 4)
-                                VStack(alignment: .trailing, spacing: 6) {
-                                    Text(app.published ? "منشور" : "مسودة")
-                                        .font(.caption.bold())
-                                        .foregroundStyle(app.published ? .green : .orange)
-                                    Image(systemName: "pencil.circle")
-                                        .foregroundStyle(gold)
+                                .buttonStyle(.bordered)
+                                .tint(gold)
+
+                                Button(role: .destructive) {
+                                    appToDelete = app
+                                } label: {
+                                    Label("حذف", systemImage: "trash")
+                                        .frame(maxWidth: .infinity, minHeight: 44)
+                                        .contentShape(Rectangle())
                                 }
+                                .buttonStyle(.bordered)
+                                .tint(.red)
                             }
-                            .padding(14)
-                            .background(Color.white.opacity(0.06))
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .labelStyle(.titleAndIcon)
                         }
-                        .buttonStyle(.plain)
-                        .contextMenu {
-                            Button("حذف التطبيق", systemImage: "trash", role: .destructive) {
-                                appToDelete = app
-                            }
-                        }
-                        .overlay(alignment: .leading) {
-                            Button(role: .destructive) {
-                                appToDelete = app
-                            } label: {
-                                Image(systemName: "trash")
-                                    .foregroundStyle(.red)
-                                    .frame(width: 40, height: 44)
-                            }
-                            .buttonStyle(.plain)
-                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.white.opacity(0.06))
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
                 }
                 .padding(.horizontal, 16)
