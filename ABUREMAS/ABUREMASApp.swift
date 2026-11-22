@@ -784,6 +784,19 @@ struct ContentView: View {
 
     @MainActor
     private func installApp(_ app: StoreApp) async {
+        // BetaDrop hosts an installation landing page, not a raw IPA file.
+        // Open its HTTPS page directly; do not send it to the Supabase OTA manifest endpoint.
+        if let path = app.ipaPath,
+           let link = URL(string: path),
+           link.scheme?.lowercased() == "https",
+           let host = link.host?.lowercased(),
+           (host == "betadrop.app" || host == "www.betadrop.app"),
+           link.path == "/install/",
+           URLComponents(url: link, resolvingAgainstBaseURL: false)?
+                .queryItems?.contains(where: { $0.name == "i" && !($0.value ?? "").isEmpty }) == true {
+            await UIApplication.shared.open(link)
+            return
+        }
         do {
             let session = try await SupabaseManager.shared.client.auth.session
             let endpoint = SupabaseConfig.projectURL.appending(path: "functions/v1/ota-install")
