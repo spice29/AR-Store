@@ -84,6 +84,7 @@ struct AdminDashboardView: View {
     @State private var showingEditor = false
     @State private var editingApp: AdminApp?
     @State private var appToDelete: AdminApp?
+    @State private var deletingAppID: UUID?
 
     private let gold = Color(red: 0.91, green: 0.73, blue: 0.35)
 
@@ -180,12 +181,13 @@ struct AdminDashboardView: View {
                                 Button(role: .destructive) {
                                     appToDelete = app
                                 } label: {
-                                    Label("حذف", systemImage: "trash")
+                                    Label(deletingAppID == app.id ? "جاري الحذف" : "حذف", systemImage: "trash")
                                         .frame(maxWidth: .infinity, minHeight: 44)
                                         .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.bordered)
                                 .tint(.red)
+                                .disabled(deletingAppID != nil)
                             }
                             .labelStyle(.titleAndIcon)
                         }
@@ -249,6 +251,10 @@ struct AdminDashboardView: View {
 
     @MainActor
     private func deleteApp(_ app: AdminApp) async {
+        guard deletingAppID == nil else { return }
+        deletingAppID = app.id
+        errorMessage = ""
+        defer { deletingAppID = nil }
         do {
             try await SupabaseManager.shared.client
                 .from("apps")
