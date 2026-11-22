@@ -877,7 +877,14 @@ struct ContentView: View {
         }
 
         do {
-            apps = try await AppService.shared.fetchApps()
+            let fetched = try await AppService.shared.fetchApps()
+            apps = fetched
+            appsError = nil
+        } catch is CancellationError {
+            // SwiftUI may cancel view-scoped tasks during tab transitions.
+            // Keep the last successful results and allow a fresh retry.
+        } catch let error as URLError where error.code == .cancelled {
+            // URLSession cancellation is not a backend failure.
         } catch {
             appsError = error.localizedDescription
         }
