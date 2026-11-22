@@ -421,13 +421,11 @@ private struct AppEditorView: View {
             if useFile, let data = selectedIPA {
                 saveStatus = "جاري رفع IPA..."
                 let storagePath = "apps/\(UUID().uuidString).ipa"
-                try await SupabaseManager.shared.client.storage
-                    .from("ipa-files")
-                    .upload(
-                        path: storagePath,
-                        file: data,
-                        options: FileOptions(contentType: "application/octet-stream")
-                    )
+                try await IPAResumableUploader.upload(data: data, path: storagePath) { progress in
+                    Task { @MainActor in
+                        saveStatus = "جاري رفع IPA... \(Int(progress * 100))%"
+                    }
+                }
                 finalPath = storagePath
             } else if !useFile {
                 let link = ipaURL.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -469,6 +467,111 @@ private struct AppEditorView: View {
             dismiss()
         } catch {
             errorMessage = "تعذر حفظ التطبيق: \(error.localizedDescription)"
+        }
+    }
+}
+
+
+private enum IPAResumableUploader {
+    enum UploadError: LocalizedError {
+        case badResponse(Int, String)
+        case missingLocation
+        case invalidOffset
+        var errorDescription: String? {
+            switch self {
+            case .badResponse(let code, let message):
+                return "فشل رفع IPA (HTTP \(code)): \(message)"
+            case .missingLocation:
+                return "لم يرجع الخادم رابط متابعة الرفع."
+            case .invalidOffset:
+                return "تعذر التحقق من موضع استكمال الرفع."
+            }
+        }
+    }
+
+    static func upload(data: Data, path: String, onProgress: @escaping (Double) -> Void) async throws {
+        let token = try await SupabaseManager.shared.client.auth.session.accessToken
+        let base = SupabaseConfig.projectURL
+        let host = base.host!.replacingOccurrences(of: ".supabase.co", with: ".storage.supabase.co")
+        let endpoint = URL(string: "https://\(host)/storage/v1/upload/resumable")!
+        let metadata: [(String, String)] = [
+            ("bucketName", "ipa-files"), ("objectName", path),
+            ("contentType", "application/octet-stream")
+        ]
+        let metaHeader = metadata.map { key, value in
+            "\(key) \(Data(value.utf8).base64EncodedString())"
+        }.joined(separator: ",")
+
+        func request(_ url: URL, _ method: String) -> URLRequest {
+            var req = URLRequest(url: url)
+            req.httpMethod = method
+            req.timeoutInterval = 120
+            req.setValue("1.0.0", forHTTPHeaderField: "Tus-Resumable")
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            req.setValue(SupabaseConfig.publishableKey, forHTTPHeaderField: "apikey")
+            return req
+        }
+
+        func checked(_ response: URLResponse, _ body: Data, expected: [Int]) throws -> HTTPURLResponse {
+            guard let http = response as? HTTPURLResponse else {
+                throw UploadError.invalidOffset
+            }
+            guard expected.contains(http.statusCode) else {
+                throw UploadError.badResponse(http.statusCode, String(data: body, encoding: .utf8) ?? "")
+            }
+            return http
+        }
+
+        var create = request(endpoint, "POST")
+        create.setValue(String(data.count), forHTTPHeaderField: "Upload-Length")
+        create.setValue(metaHeader, forHTTPHeaderField: "Upload-Metadata")
+        create.setValue("false", forHTTPHeaderField: "x-upsert")
+        let (createdBody, createdResponse) = try await URLSession.shared.data(for: create)
+        let created = try checked(createdResponse, createdBody, expected: [201])
+        guard let location = created.value(forHTTPHeaderField: "Location"),
+              let uploadURL = URL(string: location, relativeTo: endpoint)?.absoluteURL else {
+            throw UploadError.missingLocation
+        }
+
+        let chunkSize = 6 * 1024 * 1024
+        var offset = 0
+        var failures = 0
+        while offset < data.count {
+            let end = min(offset + chunkSize, data.count)
+            var patch = request(uploadURL, "PATCH")
+            patch.setValue(String(offset), forHTTPHeaderField: "Upload-Offset")
+            patch.setValue("application/offset+octet-stream", forHTTPHeaderField: "Content-Type")
+            patch.httpBody = data.subdata(in: offset..<end)
+            do {
+                let (body, response) = try await URLSession.shared.data(for: patch)
+                let http = try checked(response, body, expected: [204])
+                guard let newOffset = http.value(forHTTPHeaderField: "Upload-Offset").flatMap(Int.init),
+                      newOffset > offset, newOffset <= data.count else {
+                    throw UploadError.invalidOffset
+                }
+                offset = newOffset
+                failures = 0
+                onProgress(Double(offset) / Double(data.count))
+            } catch {
+                failures += 1
+                if failures > 5 { throw error }
+                try await Task.sleep(for: .seconds(min(20, failures * 3)))
+                var head = request(uploadURL, "HEAD")
+                head.timeoutInterval = 30
+                do {
+                    let (body, response) = try await URLSession.shared.data(for: head)
+                    let http = try checked(response, body, expected: [200, 204])
+                    guard let serverOffset = http.value(forHTTPHeaderField: "Upload-Offset").flatMap(Int.init),
+                          serverOffset >= 0, serverOffset <= data.count else {
+                        throw UploadError.invalidOffset
+                    }
+                    offset = serverOffset
+                    onProgress(Double(offset) / Double(data.count))
+                } catch {
+                    // Retry HEAD on the next pass instead of assuming a failed PATCH wrote nothing.
+                    if failures >= 5 { throw error }
+                }
+            }
         }
     }
 }
