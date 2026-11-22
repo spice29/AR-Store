@@ -362,10 +362,13 @@ private struct AppEditorView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {
-                        TextField("رابط تنزيل IPA مباشر (HTTPS)", text: $ipaURL)
+                        TextField("رابط IPA مباشر أو رابط تثبيت BetaDrop (HTTPS)", text: $ipaURL)
                             .keyboardType(.URL)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
+                        Text("يدعم المتجر روابط BetaDrop مثل https://betadrop.app/install/?i=... ويفتح صفحة التثبيت مباشرة. روابط IPA الخارجية الأخرى لا تُثبّت تلقائيًا عبر خدمة OTA.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
 
                     if let oldPath = app?.ipaPath, !oldPath.isEmpty {
