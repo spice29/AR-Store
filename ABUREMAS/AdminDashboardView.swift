@@ -321,7 +321,7 @@ private struct AppEditorView: View {
                     Button("إلغاء") { dismiss() }
                 }
             }
-            .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.ipaArchive, .data, .zip]) { result in
+            .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item, .content, .data, .archive, .ipaArchive]) { result in
                 do {
                     let url = try result.get()
                     guard url.pathExtension.lowercased() == "ipa" else {
@@ -336,7 +336,7 @@ private struct AppEditorView: View {
                         errorMessage = "حجم ملف IPA أكبر من 150 ميجابايت، وهذا الحد الحالي للرفع المباشر."
                         return
                     }
-                    let data = try Data(contentsOf: url)
+                    let data = try Data(contentsOf: url, options: [.mappedIfSafe])
                     guard !data.isEmpty else {
                         errorMessage = "الملف المختار فارغ."
                         return
